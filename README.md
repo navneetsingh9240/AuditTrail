@@ -251,19 +251,21 @@ Uses `mongodb-memory-server` so tests run against a real (in-memory) MongoDB wit
 
 ```
 audittrail/
-├── backend/
-│   └── src/
-│       ├── config/        MongoDB connection
-│       ├── controllers/   HTTP <-> command/query handler wiring
-│       ├── routes/        Express routers (commands vs queries, kept separate)
-│       ├── commands/      One handler per command; validation + business rules
-│       ├── queries/       Read-side handlers (replay-based + read-model-based)
-│       ├── events/        Event types, hash chain, event store, validator, integrity verifier
-│       ├── aggregates/    Container reducer + business rule guards
-│       ├── projections/   Read-model projection + worker
-│       ├── models/        Mongoose schemas (Event, ContainerReadModel)
-│       ├── seed/          Seed script
-│       └── scripts/       Projection rebuild script
+backend/
+├── src/
+│   ├── controllers/
+│   │   ├── commandController.js
+│   │   └── queryController.js
+│   ├── routes/
+│   │   ├── commandRoutes.js
+│   │   └── queryRoutes.js
+│   ├── app.js
+│   └── server.js
+├── .env.example
+├── .gitignore
+├── package-lock.json
+├── package.json
+└── README.md      Projection rebuild script
 ├── frontend/
 │   └── src/
 │       ├── components/    SearchBar, EventTimeline, EventCard, HistoricalSlider,
