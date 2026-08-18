@@ -1,0 +1,15 @@
+{
+  "name": "audit-trail-db",
+  "version": "1.0.0",
+  "description": "Database layer (Event Store + Read Model) for the Audit Trail event-sourced logistics ledger",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "worker": "node workers/projectionWorker.js",
+    "audit:immutability": "node scripts/immutabilityAudit.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0"
+  }
+}
