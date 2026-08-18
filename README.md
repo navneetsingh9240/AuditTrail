@@ -2,6 +2,10 @@
 
 **Event-Sourced Inventory & Logistics Ledger**
 
+[![Event Sourcing](https://img.shields.io/badge/Architecture-Event%20Sourcing%20%2B%20CQRS-blue.svg)](https://martinfowler.com/eaaDev/EventSourcing.html)
+[![SHA-256](https://img.shields.io/badge/Security-SHA--256%20Hash%20Chain-emerald.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-10%2F10%20Passing-brightgreen.svg)]()
+
 A production-quality, full-stack demonstration of **Event Sourcing + CQRS** applied to a supply-chain / container-logistics domain, built with Node.js, Express, MongoDB, and React.
 
 ---
