@@ -1,29 +1,42 @@
 /**
- * Command Controller (Write Side Operations)
- * Receives mutation requests, validates inputs, and triggers event append logic.
+ * Command Controller (Write Side Operations) - Day 3 Implementation
+ * Receives mutation requests, validates inputs via middleware, and triggers event store append logic.
  */
+import { appendEvent, getShipmentByIdFromStore } from '../store/inMemoryStore.js';
 
 // POST /api/commands/shipment/create
 export const createShipment = (req, res) => {
-  const { shipmentId, origin, destination } = req.body;
-  
-  if (!shipmentId) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "shipmentId is required" 
+  const { shipmentId, origin, destination, carrier } = req.body;
+
+  const existing = getShipmentByIdFromStore(shipmentId);
+  if (existing) {
+    return res.status(409).json({
+      success: false,
+      error: `Aggregate conflict: Shipment '${shipmentId}' already exists. Use MOVE or UPDATE commands.`
     });
   }
 
-  // Day 1 CQRS Command Stub
-  return res.status(202).json({
+  const generatedEvent = appendEvent(shipmentId, 'SHIPMENT_CREATED', {
+    origin,
+    destination,
+    carrier: carrier || 'Standard Logistics',
+    status: 'CREATED'
+  });
+
+  res.setHeader('x-command-id', `cmd_${Date.now()}`);
+  res.setHeader('x-event-version', generatedEvent.version);
+
+  return res.status(201).json({
     success: true,
-    message: "Command accepted: CONTAINER_CREATED",
+    message: "Command Accepted & Event Persisted: SHIPMENT_CREATED",
     command: {
       type: "CREATE_SHIPMENT",
       aggregateId: shipmentId,
-      payload: { origin, destination },
-      timestamp: new Date().toISOString()
-    }
+      version: generatedEvent.version,
+      payload: { origin, destination, carrier },
+      timestamp: generatedEvent.timestamp
+    },
+    event: generatedEvent
   });
 };
 
@@ -31,22 +44,66 @@ export const createShipment = (req, res) => {
 export const moveShipment = (req, res) => {
   const { shipmentId, location, status } = req.body;
 
-  if (!shipmentId || !location) {
-    return res.status(400).json({ 
-      success: false, 
-      error: "shipmentId and location are required" 
+  const existing = getShipmentByIdFromStore(shipmentId);
+  if (!existing) {
+    return res.status(444 || 404).json({
+      success: false,
+      error: `Aggregate not found: Cannot move shipment '${shipmentId}' before creation.`
     });
   }
 
-  // Day 1 CQRS Command Stub
+  const generatedEvent = appendEvent(shipmentId, 'SHIPMENT_MOVED', {
+    location,
+    status: status || 'IN_TRANSIT'
+  });
+
+  res.setHeader('x-command-id', `cmd_${Date.now()}`);
+  res.setHeader('x-event-version', generatedEvent.version);
+
   return res.status(202).json({
     success: true,
-    message: "Command accepted: LOCATION_UPDATED",
+    message: "Command Accepted & Event Persisted: SHIPMENT_MOVED",
     command: {
       type: "MOVE_SHIPMENT",
       aggregateId: shipmentId,
-      payload: { location, status },
-      timestamp: new Date().toISOString()
-    }
+      version: generatedEvent.version,
+      payload: { location, status: status || 'IN_TRANSIT' },
+      timestamp: generatedEvent.timestamp
+    },
+    event: generatedEvent
+  });
+};
+
+// POST /api/commands/shipment/status
+export const updateShipmentStatus = (req, res) => {
+  const { shipmentId, status, notes } = req.body;
+
+  const existing = getShipmentByIdFromStore(shipmentId);
+  if (!existing) {
+    return res.status(404).json({
+      success: false,
+      error: `Aggregate not found: Cannot update status for '${shipmentId}'.`
+    });
+  }
+
+  const generatedEvent = appendEvent(shipmentId, 'STATUS_UPDATED', {
+    status: status.toUpperCase(),
+    notes: notes || 'Status updated via audit command portal'
+  });
+
+  res.setHeader('x-command-id', `cmd_${Date.now()}`);
+  res.setHeader('x-event-version', generatedEvent.version);
+
+  return res.status(202).json({
+    success: true,
+    message: `Command Accepted & Event Persisted: STATUS_UPDATED -> ${status.toUpperCase()}`,
+    command: {
+      type: "UPDATE_STATUS",
+      aggregateId: shipmentId,
+      version: generatedEvent.version,
+      payload: { status: status.toUpperCase(), notes },
+      timestamp: generatedEvent.timestamp
+    },
+    event: generatedEvent
   });
 };

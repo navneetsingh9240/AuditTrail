@@ -1,11 +1,12 @@
 import express from 'express';
-import { createShipment, moveShipment } from '../controllers/commandController.js';
-import { validateCreateShipmentCommand, validateMoveShipmentCommand } from '../middleware/commandValidator.js';
+import { createShipment, moveShipment, updateShipmentStatus } from '../controllers/commandController.js';
+import { validateCreateShipmentCommand, validateMoveShipmentCommand, validateUpdateStatusCommand } from '../middleware/commandValidator.js';
 
 const router = express.Router();
 
-// CQRS Command Routes with Day 2 Validation Middleware
+// CQRS Command Routes (Write Side Operations)
 router.post('/shipment/create', validateCreateShipmentCommand, createShipment);
 router.post('/shipment/move', validateMoveShipmentCommand, moveShipment);
+router.post('/shipment/status', validateUpdateStatusCommand, updateShipmentStatus);
 
 export default router;

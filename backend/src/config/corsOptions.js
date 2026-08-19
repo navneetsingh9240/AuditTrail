@@ -5,7 +5,7 @@
 
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173', // Vite React dev server
-  'http://localhost:3000',                          # Alternative dev port
+  'http://localhost:3000',                          // Alternative dev port
 ];
 
 export const corsOptions = {

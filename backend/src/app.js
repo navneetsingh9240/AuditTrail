@@ -2,18 +2,27 @@ import express from 'express';
 import cors from 'cors';
 import { corsOptions } from './config/corsOptions.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { requestLogger } from './middleware/requestLogger.js';
 import commandRoutes from './routes/commandRoutes.js';
 import queryRoutes from './routes/queryRoutes.js';
 
 const app = express();
 
-// Strict CORS Middleware (Day 2 Security & CQRS Headers)
+// Strict CORS & Body Parsing Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Request Audit Logging Middleware (Day 3 Update)
+app.use(requestLogger);
+
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'UP', service: 'Audit Trail CQRS API' });
+  res.status(200).json({
+    status: 'UP',
+    service: 'Audit Trail CQRS API',
+    day: 3,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // CQRS Segregated Routes

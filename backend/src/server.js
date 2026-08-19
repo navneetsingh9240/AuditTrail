@@ -6,7 +6,21 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`[Audit Trail Backend] Server listening on port ${PORT}`);
-  console.log(`[CQRS Router] Command API mounted at /api/commands (POST)`);
-  console.log(`[CQRS Router] Query API mounted at /api/queries (GET)`);
+  console.log(`====================================================`);
+  console.log(`  Audit Trail Backend (Day 3 CQRS Integration)      `);
+  console.log(`====================================================`);
+  console.log(`[Server] Listening on http://localhost:${PORT}`);
+  console.log(`[Health] Check status at http://localhost:${PORT}/health`);
+  console.log(`----------------------------------------------------`);
+  console.log(`[CQRS Write Side - Commands (POST)]`);
+  console.log(` - POST /api/commands/shipment/create`);
+  console.log(` - POST /api/commands/shipment/move`);
+  console.log(` - POST /api/commands/shipment/status`);
+  console.log(`----------------------------------------------------`);
+  console.log(`[CQRS Read Side - Queries (GET)]`);
+  console.log(` - GET  /api/queries/shipments`);
+  console.log(` - GET  /api/queries/shipment/:id`);
+  console.log(` - GET  /api/queries/shipment/:id/events`);
+  console.log(` - GET  /api/queries/stats`);
+  console.log(`====================================================`);
 });
