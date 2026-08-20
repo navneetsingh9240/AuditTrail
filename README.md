@@ -1,1 +1,1 @@
-# AuditTrail
+# AuditTrailDatabase controller structure documented.
