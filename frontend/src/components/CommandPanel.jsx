@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, Ship, MapPin, Thermometer, CheckCircle2, PackageCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { PlusCircle, Ship, MapPin, Thermometer, CheckCircle2, PackageCheck, AlertCircle, RefreshCw, Zap, DoorClosed, Navigation } from 'lucide-react';
 import * as api from '../services/api';
 
 export default function CommandPanel({ containerId, currentVersion, onCommandSuccess }) {
@@ -12,9 +12,14 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
   const [vesselName, setVesselName] = useState('MV Blue Wave');
   const [location, setLocation] = useState('');
   const [temperature, setTemperature] = useState('6.5');
+  const [humidity, setHumidity] = useState('55');
+  const [shockG, setShockG] = useState('0.2');
+  const [doorOpen, setDoorOpen] = useState(false);
+  const [latitude, setLatitude] = useState('10.2');
+  const [longitude, setLongitude] = useState('65.4');
+  const [geofenceBreached, setGeofenceBreached] = useState(false);
   const [portName, setPortName] = useState('');
   const [recipient, setRecipient] = useState('');
-  const [customVersion, setCustomVersion] = useState(currentVersion);
   const [simulateOCCConflict, setSimulateOCCConflict] = useState(false);
 
   const clearMessages = () => {
@@ -27,7 +32,6 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
     clearMessages();
     setLoading(true);
 
-    // If simulate OCC conflict checked, pass an outdated version
     const expectedVersion = simulateOCCConflict ? Math.max(0, currentVersion - 1) : currentVersion;
 
     try {
@@ -37,9 +41,18 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
       } else if (activeTab === 'move') {
         if (!location) throw new Error('Location is required for movement update.');
         res = await api.moveContainer(containerId, { location, expectedVersion });
-      } else if (activeTab === 'temp') {
-        if (!temperature) throw new Error('Temperature reading is required.');
-        res = await api.recordTemperature(containerId, { temperature: Number(temperature), location: location || 'Sea Transit', expectedVersion });
+      } else if (activeTab === 'telemetry') {
+        res = await api.recordTelemetry(containerId, {
+          temperature: Number(temperature),
+          humidity: Number(humidity),
+          shockG: Number(shockG),
+          doorOpen,
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+          location: location || 'Sea Transit Corridor',
+          geofenceBreached,
+          expectedVersion,
+        });
       } else if (activeTab === 'arrive') {
         res = await api.arriveContainer(containerId, { portName: portName || location || 'Destination Port', location: location || portName, expectedVersion });
       } else if (activeTab === 'unload') {
@@ -48,7 +61,7 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
         res = await api.completeDelivery(containerId, { location: location || 'Final Warehouse', recipient: recipient || 'Logistics Receiver', expectedVersion });
       }
 
-      setSuccessMsg(`Command executed! Appended version ${res.event?.version}`);
+      setSuccessMsg(`Command executed! Generated new event store records.`);
       setLocation('');
       if (onCommandSuccess) onCommandSuccess();
     } catch (err) {
@@ -89,7 +102,7 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
         {[
           { id: 'load', label: 'Load on Ship', icon: Ship },
           { id: 'move', label: 'Move Location', icon: MapPin },
-          { id: 'temp', label: 'Telemetry Sensor', icon: Thermometer },
+          { id: 'telemetry', label: 'IoT Sensor Telemetry', icon: Thermometer },
           { id: 'arrive', label: 'Arrive Port', icon: CheckCircle2 },
           { id: 'unload', label: 'Unload', icon: PackageCheck },
           { id: 'complete', label: 'Complete Delivery', icon: CheckCircle2 },
@@ -118,9 +131,9 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
 
       {/* Form Area */}
       <form onSubmit={handleExecuteCommand} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {activeTab === 'load' && (
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-400 mb-1">Vessel Name</label>
               <input
                 type="text"
@@ -132,22 +145,98 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
             </div>
           )}
 
-          {activeTab === 'temp' && (
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Temperature (°C)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={temperature}
-                onChange={(e) => setTemperature(e.target.value)}
-                placeholder="e.g. 12.5 (>8°C triggers SPIKE)"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-              />
-            </div>
+          {activeTab === 'telemetry' && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Temperature (°C)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(e.target.value)}
+                  placeholder="e.g. 12.5 (>8°C triggers SPIKE)"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Humidity (%)</label>
+                <input
+                  type="number"
+                  value={humidity}
+                  onChange={(e) => setHumidity(e.target.value)}
+                  placeholder="e.g. 80 (>75% triggers SPIKE)"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Shock Acceleration (G)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={shockG}
+                  onChange={(e) => setShockG(e.target.value)}
+                  placeholder="e.g. 3.2 (>2.5G triggers SHOCK)"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Cargo Door Lock State</label>
+                <button
+                  type="button"
+                  onClick={() => setDoorOpen(!doorOpen)}
+                  className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 border transition-all ${
+                    doorOpen
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  }`}
+                >
+                  {doorOpen ? <DoorClosed className="w-3.5 h-3.5" /> : <DoorClosed className="w-3.5 h-3.5" />}
+                  {doorOpen ? 'Door Unlocked / Open' : 'Door Secured / Locked'}
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">GPS Latitude</label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={latitude}
+                  onChange={(e) => setLatitude(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">GPS Longitude</label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={longitude}
+                  onChange={(e) => setLongitude(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div className="flex items-end mb-1">
+                <label className="flex items-center gap-2 text-xs text-rose-300 font-semibold cursor-pointer bg-rose-500/10 border border-rose-500/30 p-2 rounded-lg w-full">
+                  <input
+                    type="checkbox"
+                    checked={geofenceBreached}
+                    onChange={(e) => setGeofenceBreached(e.target.checked)}
+                    className="accent-rose-500"
+                  />
+                  <Navigation className="w-3.5 h-3.5 text-rose-400" />
+                  Simulate Geofence Deviation
+                </label>
+              </div>
+            </>
           )}
 
           {activeTab === 'arrive' && (
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-400 mb-1">Port Name</label>
               <input
                 type="text"
@@ -160,7 +249,7 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
           )}
 
           {activeTab === 'complete' && (
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-400 mb-1">Recipient Name</label>
               <input
                 type="text"
@@ -172,7 +261,7 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
             </div>
           )}
 
-          <div>
+          <div className={activeTab === 'telemetry' ? 'col-span-1' : 'sm:col-span-2'}>
             <label className="block text-xs font-medium text-slate-400 mb-1">Location / Waypoint</label>
             <input
               type="text"
