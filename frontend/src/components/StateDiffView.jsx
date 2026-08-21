@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitCompare, ArrowRight, CheckCircle2, AlertTriangle, Layers, Clock } from 'lucide-react';
+import { GitCompare, ArrowRight } from 'lucide-react';
 import * as api from '../services/api';
 
 export default function StateDiffView({ containerId, maxVersion, events = [] }) {
@@ -44,6 +44,10 @@ export default function StateDiffView({ containerId, maxVersion, events = [] }) 
     { key: 'status', label: 'Status' },
     { key: 'currentLocation', label: 'Location / Waypoint' },
     { key: 'temperature', label: 'Temperature (°C)', format: (v) => (v !== null && v !== undefined ? `${Number(v).toFixed(1)}°C` : 'N/A') },
+    { key: 'humidity', label: 'Humidity (%)', format: (v) => (v !== null && v !== undefined ? `${v}%` : 'N/A') },
+    { key: 'doorOpen', label: 'Door Lock State', format: (v) => (v ? 'OPEN / UNLOCKED' : 'LOCKED') },
+    { key: 'maxShockG', label: 'Max Shock Impact (G)', format: (v) => `${v || 0}G` },
+    { key: 'geofenceBreached', label: 'Geofence Breach Flag', format: (v) => (v ? 'BREACHED' : 'NORMAL') },
     { key: 'temperatureStatus', label: 'Thermal Status' },
     { key: 'loaded', label: 'Loaded on Ship', format: (v) => (v ? 'Yes' : 'No') },
     { key: 'vesselName', label: 'Vessel Name', format: (v) => v || 'N/A' },
