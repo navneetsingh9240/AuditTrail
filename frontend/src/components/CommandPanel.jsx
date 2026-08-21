@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { PlusCircle, Ship, MapPin, Thermometer, CheckCircle2, PackageCheck, AlertCircle, RefreshCw, Zap, DoorClosed, Navigation } from 'lucide-react';
+import { PlusCircle, Ship, MapPin, Thermometer, CheckCircle2, PackageCheck, AlertCircle, RefreshCw, DoorClosed, Navigation, Key, Link } from 'lucide-react';
 import * as api from '../services/api';
 
 export default function CommandPanel({ containerId, currentVersion, onCommandSuccess }) {
   const [activeTab, setActiveTab] = useState('move');
   const [loading, setLoading] = useState(false);
+  const [anchorLoading, setAnchorLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
@@ -20,11 +21,26 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
   const [geofenceBreached, setGeofenceBreached] = useState(false);
   const [portName, setPortName] = useState('');
   const [recipient, setRecipient] = useState('');
+  const [signWithKey, setSignWithKey] = useState(false);
   const [simulateOCCConflict, setSimulateOCCConflict] = useState(false);
 
   const clearMessages = () => {
     setError(null);
     setSuccessMsg(null);
+  };
+
+  const handleAnchorToBlockchain = async () => {
+    clearMessages();
+    setAnchorLoading(true);
+    try {
+      const res = await api.anchorContainer(containerId);
+      setSuccessMsg(`Merkle tree root successfully anchored to ${res.anchor?.network || 'Polygon PoS'}! Tx: ${res.anchor?.txHash}`);
+      if (onCommandSuccess) onCommandSuccess();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Blockchain anchoring failed.');
+    } finally {
+      setAnchorLoading(false);
+    }
   };
 
   const handleExecuteCommand = async (e) => {
@@ -36,11 +52,13 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
 
     try {
       let res;
+      const keyPayload = signWithKey ? { signature: 'dummySignature', publicKey: 'dummyKey' } : {};
+
       if (activeTab === 'load') {
-        res = await api.loadContainer(containerId, { vesselName, location: location || 'Origin Wharf', expectedVersion });
+        res = await api.loadContainer(containerId, { vesselName, location: location || 'Origin Wharf', expectedVersion, ...keyPayload });
       } else if (activeTab === 'move') {
         if (!location) throw new Error('Location is required for movement update.');
-        res = await api.moveContainer(containerId, { location, expectedVersion });
+        res = await api.moveContainer(containerId, { location, expectedVersion, ...keyPayload });
       } else if (activeTab === 'telemetry') {
         res = await api.recordTelemetry(containerId, {
           temperature: Number(temperature),
@@ -52,13 +70,14 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
           location: location || 'Sea Transit Corridor',
           geofenceBreached,
           expectedVersion,
+          ...keyPayload
         });
       } else if (activeTab === 'arrive') {
-        res = await api.arriveContainer(containerId, { portName: portName || location || 'Destination Port', location: location || portName, expectedVersion });
+        res = await api.arriveContainer(containerId, { portName: portName || location || 'Destination Port', location: location || portName, expectedVersion, ...keyPayload });
       } else if (activeTab === 'unload') {
-        res = await api.unloadContainer(containerId, { location: location || 'Port Yard A', expectedVersion });
+        res = await api.unloadContainer(containerId, { location: location || 'Port Yard A', expectedVersion, ...keyPayload });
       } else if (activeTab === 'complete') {
-        res = await api.completeDelivery(containerId, { location: location || 'Final Warehouse', recipient: recipient || 'Logistics Receiver', expectedVersion });
+        res = await api.completeDelivery(containerId, { location: location || 'Final Warehouse', recipient: recipient || 'Logistics Receiver', expectedVersion, ...keyPayload });
       }
 
       setSuccessMsg(`Command executed! Generated new event store records.`);
@@ -84,7 +103,28 @@ export default function CommandPanel({ containerId, currentVersion, onCommandSuc
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleAnchorToBlockchain}
+            disabled={anchorLoading}
+            className="flex items-center gap-1.5 px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            <Link className="w-3.5 h-3.5 text-purple-400" />
+            {anchorLoading ? 'Anchoring...' : 'Anchor Root to Polygon'}
+          </button>
+
+          <label className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium cursor-pointer bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded">
+            <input
+              type="checkbox"
+              checked={signWithKey}
+              onChange={(e) => setSignWithKey(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            <Key className="w-3 h-3 text-emerald-400" />
+            Ed25519 Sign Event
+          </label>
+
           <label className="flex items-center gap-1.5 text-xs text-amber-400 font-medium cursor-pointer bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded">
             <input
               type="checkbox"
