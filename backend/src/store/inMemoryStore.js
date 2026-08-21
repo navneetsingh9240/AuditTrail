@@ -155,3 +155,55 @@ export const getStoreStats = () => {
     deliveredCount: Array.from(shipmentReadModel.values()).filter(s => s.status === 'DELIVERED').length,
   };
 };
+
+/**
+ * Day 4: Search shipments by query term and/or status filter.
+ */
+export const searchShipmentsFromStore = (searchTerm = '', statusFilter = 'ALL') => {
+  let shipments = Array.from(shipmentReadModel.values());
+
+  if (statusFilter && statusFilter !== 'ALL') {
+    shipments = shipments.filter(s => s.status === statusFilter.toUpperCase());
+  }
+
+  if (searchTerm && searchTerm.trim() !== '') {
+    const term = searchTerm.toLowerCase().trim();
+    shipments = shipments.filter(s => 
+      s.shipmentId.toLowerCase().includes(term) ||
+      s.origin.toLowerCase().includes(term) ||
+      s.destination.toLowerCase().includes(term) ||
+      (s.currentLocation && s.currentLocation.toLowerCase().includes(term)) ||
+      (s.carrier && s.carrier.toLowerCase().includes(term))
+    );
+  }
+
+  return shipments;
+};
+
+/**
+ * Day 4: Get recent events log stream for dashboard.
+ */
+export const getRecentEventsFromStore = (limit = 10) => {
+  return [...eventLog].reverse().slice(0, limit);
+};
+
+/**
+ * Day 4: Aggregate complete dashboard dataset.
+ */
+export const getDashboardSummaryFromStore = (searchTerm = '', statusFilter = 'ALL') => {
+  const stats = getStoreStats();
+  const shipments = searchShipmentsFromStore(searchTerm, statusFilter);
+  const recentEvents = getRecentEventsFromStore(10);
+
+  return {
+    stats,
+    activeFilters: {
+      searchTerm: searchTerm || null,
+      statusFilter: statusFilter || 'ALL'
+    },
+    totalMatches: shipments.length,
+    shipments,
+    recentEvents
+  };
+};
+

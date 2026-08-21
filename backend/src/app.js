@@ -12,15 +12,15 @@ const app = express();
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Request Audit Logging Middleware (Day 3 Update)
+// Request Audit Logging Middleware
 app.use(requestLogger);
 
-// Health Check Endpoint
+// Health Check Endpoint (Day 4 Update)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
     service: 'Audit Trail CQRS API',
-    day: 3,
+    day: 4,
     timestamp: new Date().toISOString()
   });
 });
@@ -33,3 +33,5 @@ app.use('/api/queries', queryRoutes);
 app.use(errorHandler);
 
 export default app;
+
+

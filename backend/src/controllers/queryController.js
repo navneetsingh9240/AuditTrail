@@ -6,7 +6,9 @@ import {
   getAllShipmentsFromStore,
   getShipmentByIdFromStore,
   getEventsByAggregateIdFromStore,
-  getStoreStats
+  getStoreStats,
+  searchShipmentsFromStore,
+  getDashboardSummaryFromStore
 } from '../store/inMemoryStore.js';
 
 // GET /api/queries/shipments
@@ -72,3 +74,32 @@ export const getSystemStats = (req, res) => {
     stats
   });
 };
+
+// GET /api/queries/search?q=term&status=FILTER (Day 4 Search Bar Query)
+export const searchShipments = (req, res) => {
+  const { q = '', status = 'ALL' } = req.query;
+  const results = searchShipmentsFromStore(q, status);
+
+  return res.status(200).json({
+    success: true,
+    message: `Query executed: Search shipments matching term '${q}' with status '${status}'`,
+    query: q,
+    statusFilter: status,
+    matchCount: results.length,
+    data: results
+  });
+};
+
+// GET /api/queries/dashboard?q=term&status=FILTER (Day 4 Dashboard Aggregate Query)
+export const getDashboardSummary = (req, res) => {
+  const { q = '', status = 'ALL' } = req.query;
+  const dashboardData = getDashboardSummaryFromStore(q, status);
+
+  return res.status(200).json({
+    success: true,
+    message: "Query executed: Fetch Dashboard scaffolding summary and telemetry",
+    timestamp: new Date().toISOString(),
+    data: dashboardData
+  });
+};
+
