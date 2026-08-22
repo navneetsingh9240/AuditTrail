@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`====================================================`);
-  console.log(`  Audit Trail Backend (Day 3 CQRS Integration)      `);
+  console.log(`  Audit Trail Backend (Day 5 - CQRS Event Filtering)`);
   console.log(`====================================================`);
   console.log(`[Server] Listening on http://localhost:${PORT}`);
   console.log(`[Health] Check status at http://localhost:${PORT}/health`);
@@ -21,6 +21,11 @@ app.listen(PORT, () => {
   console.log(` - GET  /api/queries/shipments`);
   console.log(` - GET  /api/queries/shipment/:id`);
   console.log(` - GET  /api/queries/shipment/:id/events`);
+  console.log(` - GET  /api/queries/events (Filtered Event Stream)`);
+  console.log(` - GET  /api/queries/search`);
+  console.log(` - GET  /api/queries/dashboard`);
   console.log(` - GET  /api/queries/stats`);
   console.log(`====================================================`);
 });
+
+

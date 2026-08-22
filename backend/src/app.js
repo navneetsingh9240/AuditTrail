@@ -15,12 +15,13 @@ app.use(express.json());
 // Request Audit Logging Middleware
 app.use(requestLogger);
 
-// Health Check Endpoint (Day 4 Update)
+// Health Check Endpoint (Day 5 Update - CQRS Event Query & Filtering Engine)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
     service: 'Audit Trail CQRS API',
-    day: 4,
+    day: 5,
+    commit: 'CQRS Event Query & Audit Filtering Engine',
     timestamp: new Date().toISOString()
   });
 });

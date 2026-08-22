@@ -207,3 +207,23 @@ export const getDashboardSummaryFromStore = (searchTerm = '', statusFilter = 'AL
   };
 };
 
+/**
+ * Day 5: Get filtered append-only event stream by eventType, aggregateId, and limit.
+ */
+export const getFilteredEventsFromStore = ({ eventType, aggregateId, limit = 50 } = {}) => {
+  let filtered = [...eventLog];
+
+  if (eventType && eventType.toUpperCase() !== 'ALL') {
+    filtered = filtered.filter(evt => evt.eventType === eventType.toUpperCase());
+  }
+
+  if (aggregateId && aggregateId.trim() !== '') {
+    const term = aggregateId.toLowerCase().trim();
+    filtered = filtered.filter(evt => evt.aggregateId.toLowerCase().includes(term));
+  }
+
+  const numLimit = parseInt(limit, 10) || 50;
+  return filtered.reverse().slice(0, numLimit);
+};
+
+

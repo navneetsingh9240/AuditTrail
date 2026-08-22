@@ -8,7 +8,8 @@ import {
   getEventsByAggregateIdFromStore,
   getStoreStats,
   searchShipmentsFromStore,
-  getDashboardSummaryFromStore
+  getDashboardSummaryFromStore,
+  getFilteredEventsFromStore
 } from '../store/inMemoryStore.js';
 
 // GET /api/queries/shipments
@@ -102,4 +103,23 @@ export const getDashboardSummary = (req, res) => {
     data: dashboardData
   });
 };
+
+// GET /api/queries/events?eventType=...&aggregateId=...&limit=... (Day 5 Event Stream Query API)
+export const getFilteredEvents = (req, res) => {
+  const { eventType, aggregateId, limit } = req.query;
+  const events = getFilteredEventsFromStore({ eventType, aggregateId, limit });
+
+  return res.status(200).json({
+    success: true,
+    message: "Query executed: Fetch filtered event stream history",
+    filters: {
+      eventType: eventType || 'ALL',
+      aggregateId: aggregateId || null,
+      limit: parseInt(limit, 10) || 50
+    },
+    count: events.length,
+    events
+  });
+};
+
 

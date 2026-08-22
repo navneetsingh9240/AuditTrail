@@ -5,7 +5,8 @@ import {
   getShipmentEvents, 
   getSystemStats,
   searchShipments,
-  getDashboardSummary
+  getDashboardSummary,
+  getFilteredEvents
 } from '../controllers/queryController.js';
 
 const router = express.Router();
@@ -16,9 +17,11 @@ router.get('/shipment/:id', getShipmentById);
 router.get('/shipment/:id/events', getShipmentEvents);
 router.get('/stats', getSystemStats);
 
-// Day 4 Dashboard Scaffolding & Search Query Routes
+// Day 4 & 5 Dashboard & Event Stream Query Routes
 router.get('/search', searchShipments);
 router.get('/dashboard', getDashboardSummary);
+router.get('/events', getFilteredEvents);
 
 export default router;
+
 
