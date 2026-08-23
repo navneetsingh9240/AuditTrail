@@ -26,9 +26,15 @@ app.get('/health', (req, res) => {
   });
 });
 
-// CQRS Segregated Routes
+// CQRS Segregated Routes (Supports /api/commands, /api/queries, /commands, /queries, and direct / paths)
 app.use('/api/commands', commandRoutes);
+app.use('/commands', commandRoutes);
 app.use('/api/queries', queryRoutes);
+app.use('/queries', queryRoutes);
+app.use('/api', commandRoutes);
+app.use('/api', queryRoutes);
+app.use('/', commandRoutes);
+app.use('/', queryRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);

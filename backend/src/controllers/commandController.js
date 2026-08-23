@@ -46,7 +46,7 @@ export const moveShipment = (req, res) => {
 
   const existing = getShipmentByIdFromStore(shipmentId);
   if (!existing) {
-    return res.status(444 || 404).json({
+    return res.status(404).json({
       success: false,
       error: `Aggregate not found: Cannot move shipment '${shipmentId}' before creation.`
     });
