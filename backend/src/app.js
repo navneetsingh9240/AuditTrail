@@ -8,37 +8,35 @@ import queryRoutes from './routes/queryRoutes.js';
 
 const app = express();
 
-// Strict CORS & Body Parsing Middleware
+// Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
-
-// Request Audit Logging Middleware
 app.use(requestLogger);
 
-// Health Check Endpoint (Day 5 Update - CQRS Event Query & Filtering Engine)
+// Health Check Endpoint (Week 1 CQRS Architecture)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
-    service: 'Audit Trail CQRS API',
-    day: 5,
-    commit: 'CQRS Event Query & Audit Filtering Engine',
+    service: 'Audit Trail Event-Sourced Logistics Ledger API',
+    week: 'Week 1: CQRS Setup & Segregated Routers',
     timestamp: new Date().toISOString()
   });
 });
 
-// CQRS Segregated Routes (Supports /api/commands, /api/queries, /commands, /queries, and direct / paths)
+// Segregated CQRS Routers
+// Write Side (Commands)
 app.use('/api/commands', commandRoutes);
 app.use('/commands', commandRoutes);
+
+// Read Side (Queries)
 app.use('/api/queries', queryRoutes);
 app.use('/queries', queryRoutes);
+
+// Root fallback mounts for direct endpoints
 app.use('/api', commandRoutes);
 app.use('/api', queryRoutes);
-app.use('/', commandRoutes);
-app.use('/', queryRoutes);
 
-// Global Error Handler Middleware
+// Centralized Error Handling Middleware
 app.use(errorHandler);
 
 export default app;
-
-
