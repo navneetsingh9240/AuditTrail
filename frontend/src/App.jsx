@@ -29,7 +29,7 @@ export default function App() {
 
     // Socket.IO real-time connection
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
     });
 
     newSocket.on('connect', () => {
