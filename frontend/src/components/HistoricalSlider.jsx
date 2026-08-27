@@ -1,15 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { History, Play, RotateCcw, Clock, ArrowRight } from 'lucide-react';
+import { History, Play, Pause, RotateCcw, Clock, FastForward } from 'lucide-react';
 
 export default function HistoricalSlider({ events = [], onVersionSelect, currentReconstructedVersion }) {
   const maxVersion = events.length;
   const [selectedVersion, setSelectedVersion] = useState(maxVersion || 1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1000); // ms per step
 
   useEffect(() => {
-    if (maxVersion > 0) {
+    if (maxVersion > 0 && !isPlaying) {
       setSelectedVersion(currentReconstructedVersion || maxVersion);
     }
-  }, [maxVersion, currentReconstructedVersion]);
+  }, [maxVersion, currentReconstructedVersion, isPlaying]);
+
+  // Playback timer effect
+  useEffect(() => {
+    let timer = null;
+    if (isPlaying) {
+      timer = setInterval(() => {
+        setSelectedVersion((prev) => {
+          if (prev >= maxVersion) {
+            setIsPlaying(false);
+            return maxVersion;
+          }
+          const next = prev + 1;
+          onVersionSelect(next);
+          return next;
+        });
+      }, playbackSpeed);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isPlaying, maxVersion, playbackSpeed, onVersionSelect]);
 
   if (!events || events.length === 0) return null;
 
@@ -22,35 +45,69 @@ export default function HistoricalSlider({ events = [], onVersionSelect, current
   const selectedEvent = events.find((e) => e.version === selectedVersion) || events[events.length - 1];
 
   const handleReset = () => {
+    setIsPlaying(false);
     setSelectedVersion(maxVersion);
     onVersionSelect(maxVersion);
   };
 
+  const togglePlayback = () => {
+    if (selectedVersion >= maxVersion) {
+      setSelectedVersion(1);
+      onVersionSelect(1);
+    }
+    setIsPlaying(!isPlaying);
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg mb-6 border-l-4 border-l-amber-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-3">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400">
             <History className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              Time Travel State Scrubbing
+              Time Travel State Scrubbing & Auto-Replay
             </h3>
             <p className="text-xs text-slate-400">
-              Drag the slider to reconstruct historical container state at any previous version.
+              Scrub the timeline or play historical event progression to visualize state evolution.
             </p>
           </div>
         </div>
 
-        {selectedVersion !== maxVersion && (
+        <div className="flex items-center gap-2">
+          {/* Play / Pause Toggle Button */}
           <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded-lg text-xs font-medium transition-colors shadow-sm self-start sm:self-auto"
+            onClick={togglePlayback}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+              isPlaying
+                ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                : 'bg-slate-950 hover:bg-slate-800 border border-slate-800 text-amber-400'
+            }`}
           >
-            <RotateCcw className="w-3.5 h-3.5" /> Return to Present State (v{maxVersion})
+            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+            {isPlaying ? 'Pause Replay' : 'Auto Replay'}
           </button>
-        )}
+
+          {/* Speed Toggle */}
+          <button
+            onClick={() => setPlaybackSpeed(playbackSpeed === 1000 ? 500 : playbackSpeed === 500 ? 250 : 1000)}
+            className="flex items-center gap-1 px-2 py-1.5 bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-lg text-[11px] font-mono font-bold"
+            title="Toggle Replay Speed"
+          >
+            <FastForward className="w-3 h-3 text-amber-400" />
+            {playbackSpeed === 1000 ? '1x' : playbackSpeed === 500 ? '2x' : '4x'}
+          </button>
+
+          {selectedVersion !== maxVersion && (
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 rounded-lg text-xs font-medium transition-colors shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Present (v{maxVersion})
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
