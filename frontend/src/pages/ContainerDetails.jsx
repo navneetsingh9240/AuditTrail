@@ -5,6 +5,7 @@ import ContainerSummary from '../components/ContainerSummary';
 import AuditCertificateModal from '../components/AuditCertificateModal';
 import HistoricalSlider from '../components/HistoricalSlider';
 import StateDiffView from '../components/StateDiffView';
+import ColdChainSlaMetrics from '../components/ColdChainSlaMetrics';
 import TemperatureChart from '../components/TemperatureChart';
 import RouteMap from '../components/RouteMap';
 import LocationHistory from '../components/LocationHistory';
@@ -178,6 +179,11 @@ export default function ContainerDetails({ containerId, onBack, socket }) {
         containerId={containerId}
         currentVersion={currentState?.currentVersion || 0}
         onCommandSuccess={() => fetchContainerData()}
+      />
+
+      {/* Cold Chain SLA Analytics */}
+      <ColdChainSlaMetrics
+        temperatureHistory={displayedState?.temperatureHistory || []}
       />
 
       {/* Sensor Metrics Chart */}
