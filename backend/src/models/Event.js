@@ -34,7 +34,18 @@ const EventSchema = new Schema(
           `[EventStore Error] '${props.value}' is not a valid eventType. Event types must be non-empty uppercase strings with letters, numbers, or underscores (e.g. SHIPMENT_CREATED, STATUS_UPDATED).`
       }
     },
-    payload: { type: Schema.Types.Mixed, required: true },
+    payload: {
+      type: Schema.Types.Mixed,
+      required: [true, 'payload is required'],
+      immutable: true,
+      validate: {
+        validator: function (v) {
+          return typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length > 0;
+        },
+        message: (props) =>
+          `[EventStore Error] Event payload must be a non-empty object containing event data.`
+      }
+    },
     timestamp: { type: Date, required: true, default: Date.now, index: true },
     version: { type: Number, required: true, min: 1 },
   },
