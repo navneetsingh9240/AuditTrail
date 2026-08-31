@@ -65,7 +65,19 @@ const EventSchema = new Schema(
           `[EventStore Error] '${props.value}' is not a valid timestamp. Timestamp must be a valid past or present Date object or ISO date string.`
       }
     },
-    version: { type: Number, required: true, min: 1 },
+    version: {
+      type: Number,
+      required: [true, 'version is required'],
+      min: [1, 'version must be greater than or equal to 1'],
+      immutable: true,
+      validate: {
+        validator: function (v) {
+          return typeof v === 'number' && Number.isInteger(v) && v >= 1;
+        },
+        message: (props) =>
+          `[EventStore Error] '${props.value}' is not a valid version sequence number. Version must be a positive integer greater than or equal to 1 (e.g. 1, 2, 3...).`
+      }
+    },
   },
   {
     // No updatedAt — events are immutable and never updated.
@@ -118,6 +130,30 @@ EventSchema.statics.findByTimeRange = function(startDate, endDate, limit = 50) {
   }
   const parsedLimit = parseInt(limit, 10) || 50;
   return this.find(query).sort({ timestamp: -1 }).limit(parsedLimit);
+};
+
+// Static helper method to fetch a specific event version for an aggregateId (Optimistic Concurrency Control check)
+EventSchema.statics.findByAggregateAndVersion = function(aggregateId, version) {
+  if (!aggregateId || typeof aggregateId !== 'string') {
+    throw new Error('[EventStore Error] Valid aggregateId string is required.');
+  }
+  const parsedVersion = parseInt(version, 10);
+  if (isNaN(parsedVersion) || parsedVersion < 1) {
+    throw new Error(`[EventStore Error] Invalid version sequence number '${version}' provided.`);
+  }
+  return this.findOne({ aggregateId: aggregateId.trim(), version: parsedVersion });
+};
+
+// Static helper method to query the latest version number recorded for an aggregateId
+EventSchema.statics.getLatestVersion = async function(aggregateId) {
+  if (!aggregateId || typeof aggregateId !== 'string') {
+    throw new Error('[EventStore Error] Valid aggregateId string is required.');
+  }
+  const latestEvent = await this.findOne({ aggregateId: aggregateId.trim() })
+    .sort({ version: -1 })
+    .select('version')
+    .lean();
+  return latestEvent ? latestEvent.version : 0;
 };
 
 // ---- Immutability enforcement (Mid-Project Review deliverable) ----
