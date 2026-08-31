@@ -3,7 +3,7 @@
  * Wires the Command router and Query router (CQRS) to the database layer.
  * Run the projection worker separately: npm run worker
  */
-
+//Audit trail 
 const express = require("express");
 const { connectDB } = require("./config/db");
 const commandRoutes = require("./routes/commands");
@@ -13,7 +13,12 @@ const app = express();
 app.use(express.json());
 
 app.use("/shipment", commandRoutes); // writes  (Commands)
-app.use("/shipment", queryRoutes); // reads   (Queries)
+app.use("/shipment", queryRoutes);
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found"
+  });
+}); // reads   (Queries)
 
 const PORT = process.env.PORT || 3000;
 
