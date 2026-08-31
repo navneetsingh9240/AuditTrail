@@ -16,7 +16,9 @@ app.use("/shipment", commandRoutes); // writes  (Commands)
 app.use("/shipment", queryRoutes);
 app.use((req, res) => {
   res.status(404).json({
-    error: "Route not found"
+    success: false,
+    error: "Route not found",
+    path: req.originalUrl
   });
 }); // reads   (Queries)
 
