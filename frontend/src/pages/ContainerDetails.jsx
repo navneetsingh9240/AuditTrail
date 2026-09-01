@@ -5,6 +5,7 @@ import ContainerSummary from '../components/ContainerSummary';
 import AuditCertificateModal from '../components/AuditCertificateModal';
 import HistoricalSlider from '../components/HistoricalSlider';
 import StateDiffView from '../components/StateDiffView';
+import DeliverySlaIndicator from '../components/DeliverySlaIndicator';
 import ColdChainSlaMetrics from '../components/ColdChainSlaMetrics';
 import TemperatureChart from '../components/TemperatureChart';
 import RouteMap from '../components/RouteMap';
@@ -172,6 +173,11 @@ export default function ContainerDetails({ containerId, onBack, socket }) {
       {/* Interactive GIS Route Tracker Map */}
       <RouteMap
         locationHistory={displayedState?.locationHistory || []}
+      />
+
+      {/* Today's Delivery SLA Commitment Indicator */}
+      <DeliverySlaIndicator
+        state={displayedState}
       />
 
       {/* Command Operations Panel */}
