@@ -4,6 +4,7 @@
  */
 import mongoose from 'mongoose';
 import Event from '../models/Event.js';
+import projectionWorker from '../services/projectionWorker.js';
 import { appendEvent, getShipmentByIdFromStore } from '../store/inMemoryStore.js';
 
 // POST /api/commands/shipment/create
@@ -45,6 +46,7 @@ export const createShipment = async (req, res, next) => {
       });
       generatedEvent = doc.toObject();
       appendEvent(shipmentId, 'SHIPMENT_CREATED', payload);
+      projectionWorker.emit('event:appended', generatedEvent);
     } else {
       generatedEvent = appendEvent(shipmentId, 'SHIPMENT_CREATED', payload);
     }
@@ -107,6 +109,7 @@ export const moveShipment = async (req, res, next) => {
       });
       generatedEvent = doc.toObject();
       appendEvent(shipmentId, 'SHIPMENT_MOVED', payload);
+      projectionWorker.emit('event:appended', generatedEvent);
     } else {
       generatedEvent = appendEvent(shipmentId, 'SHIPMENT_MOVED', payload);
     }
@@ -169,6 +172,7 @@ export const updateShipmentStatus = async (req, res, next) => {
       });
       generatedEvent = doc.toObject();
       appendEvent(shipmentId, 'STATUS_UPDATED', payload);
+      projectionWorker.emit('event:appended', generatedEvent);
     } else {
       generatedEvent = appendEvent(shipmentId, 'STATUS_UPDATED', payload);
     }

@@ -4,6 +4,8 @@
  */
 import mongoose from 'mongoose';
 import Event from '../models/Event.js';
+import ShipmentReadModel from '../models/ShipmentReadModel.js';
+import projectionWorker from '../services/projectionWorker.js';
 import { foldEventsToShipmentState, foldAllEventsToShipments } from '../store/eventSourcingEngine.js';
 import {
   getAllShipmentsFromStore,
@@ -259,5 +261,41 @@ export const getFilteredEvents = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/queries/projections
+export const getProjections = async (req, res, next) => {
+  try {
+    let projections = [];
+    if (mongoose.connection.readyState === 1) {
+      projections = await ShipmentReadModel.find({}).sort({ lastUpdated: -1 }).lean();
+    } else {
+      projections = getAllShipmentsFromStore();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Query executed: Fetch denormalized read models (Projections)",
+      count: projections.length,
+      data: projections
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/queries/projections/rebuild
+export const rebuildProjections = async (req, res, next) => {
+  try {
+    const result = await projectionWorker.rebuildAllProjections();
+    return res.status(200).json({
+      success: true,
+      message: "Command executed: Rebuilt all Read Model projections from raw Event Store",
+      result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 

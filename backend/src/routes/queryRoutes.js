@@ -6,7 +6,9 @@ import {
   getSystemStats,
   searchShipments,
   getDashboardSummary,
-  getFilteredEvents
+  getFilteredEvents,
+  getProjections,
+  rebuildProjections
 } from '../controllers/queryController.js';
 
 const router = express.Router();
@@ -21,6 +23,10 @@ router.get('/stats', getSystemStats);
 router.get('/search', searchShipments);
 router.get('/dashboard', getDashboardSummary);
 router.get('/events', getFilteredEvents);
+
+// Week 3 Projections (Read Model) Routes
+router.get('/projections', getProjections);
+router.post('/projections/rebuild', rebuildProjections);
 
 export default router;
 
