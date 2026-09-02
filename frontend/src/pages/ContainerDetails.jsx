@@ -11,6 +11,7 @@ import TemperatureChart from '../components/TemperatureChart';
 import RouteMap from '../components/RouteMap';
 import LocationHistory from '../components/LocationHistory';
 import IntegrityBadge from '../components/IntegrityBadge';
+import AuditLogExporter from '../components/AuditLogExporter';
 import EventTimeline from '../components/EventTimeline';
 import CommandPanel from '../components/CommandPanel';
 
@@ -206,6 +207,12 @@ export default function ContainerDetails({ containerId, onBack, socket }) {
       <IntegrityBadge
         integrity={integrity}
         events={events}
+      />
+
+      {/* Audit Log Exporter */}
+      <AuditLogExporter
+        events={events}
+        containerId={containerId}
       />
 
       {/* Full Event Timeline Stream */}
