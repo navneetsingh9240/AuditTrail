@@ -14,6 +14,13 @@ app.use(express.json());
 
 app.use("/shipment", commandRoutes); // writes  (Commands)
 app.use("/shipment", queryRoutes);
+//Health check endpoint
+app.get("/health",(req,res)=>{
+  res.status(200).json({
+    success: true,
+    message: "AuditTrail server is running"
+  });
+});
 app.use((req, res) => {
   res.status(404).json({
     success: false,
