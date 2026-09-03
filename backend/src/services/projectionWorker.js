@@ -108,6 +108,36 @@ class ProjectionWorker extends EventEmitter {
       projectedCount
     };
   }
+
+  /**
+   * Status check helper: returns read model projection sync metrics
+   */
+  async getProjectionStatus() {
+    if (mongoose.connection.readyState !== 1) {
+      return {
+        status: 'DISCONNECTED',
+        readModelsCount: 0,
+        totalEventsCount: 0,
+        distinctAggregatesCount: 0,
+        isSynced: false,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const readModelsCount = await ShipmentReadModel.countDocuments();
+    const totalEventsCount = await Event.countDocuments();
+    const distinctAggregates = await Event.distinct('aggregateId');
+    const distinctCount = distinctAggregates ? distinctAggregates.length : 0;
+
+    return {
+      status: 'CONNECTED',
+      readModelsCount,
+      totalEventsCount,
+      distinctAggregatesCount: distinctCount,
+      isSynced: readModelsCount >= distinctCount,
+      timestamp: new Date().toISOString()
+    };
+  }
 }
 
 const projectionWorker = new ProjectionWorker();

@@ -8,6 +8,7 @@ import {
   getDashboardSummary,
   getFilteredEvents,
   getProjections,
+  getProjectionStatus,
   rebuildProjections
 } from '../controllers/queryController.js';
 
@@ -26,6 +27,7 @@ router.get('/events', getFilteredEvents);
 
 // Week 3 Projections (Read Model) Routes
 router.get('/projections', getProjections);
+router.get('/projections/status', getProjectionStatus);
 router.post('/projections/rebuild', rebuildProjections);
 
 export default router;

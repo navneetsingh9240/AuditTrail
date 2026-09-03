@@ -21,16 +21,33 @@ import {
 export const getAllShipments = async (req, res, next) => {
   try {
     let shipments = [];
+    let readPath = 'IN_MEMORY';
+
     if (mongoose.connection.readyState === 1) {
-      const allEvents = await Event.find({}).sort({ version: 1 }).lean();
-      shipments = foldAllEventsToShipments(allEvents);
+      const projections = await ShipmentReadModel.find({}).sort({ lastUpdated: -1 }).lean();
+      if (projections && projections.length > 0) {
+        shipments = projections;
+        readPath = 'PROJECTION_READ_MODEL';
+      } else {
+        const allEvents = await Event.find({}).sort({ version: 1 }).lean();
+        shipments = foldAllEventsToShipments(allEvents);
+        readPath = 'EVENT_STORE_REPLAY';
+        if (allEvents.length > 0) {
+          projectionWorker.rebuildAllProjections().catch(err =>
+            console.error('[AutoHeal Error] Background projection rebuild failed:', err.message)
+          );
+        }
+      }
     } else {
       shipments = getAllShipmentsFromStore();
     }
 
+    res.setHeader('x-read-path', readPath);
+
     return res.status(200).json({
       success: true,
-      message: "Query executed: Fetch all tracked shipments",
+      message: `Query executed: Fetch all tracked shipments (${readPath})`,
+      readPath,
       count: shipments.length,
       data: shipments
     });
@@ -44,11 +61,22 @@ export const getShipmentById = async (req, res, next) => {
   try {
     const { id } = req.params;
     let shipment = null;
+    let readPath = 'IN_MEMORY';
 
     if (mongoose.connection.readyState === 1) {
-      const events = await Event.find({ aggregateId: id }).sort({ version: 1 }).lean();
-      if (events && events.length > 0) {
-        shipment = foldEventsToShipmentState(events, id);
+      const projection = await ShipmentReadModel.findOne({ shipmentId: id }).lean();
+      if (projection) {
+        shipment = projection;
+        readPath = 'PROJECTION_READ_MODEL';
+      } else {
+        const events = await Event.find({ aggregateId: id }).sort({ version: 1 }).lean();
+        if (events && events.length > 0) {
+          shipment = foldEventsToShipmentState(events, id);
+          readPath = 'EVENT_STORE_REPLAY';
+          projectionWorker.projectSingleEvent(events[events.length - 1]).catch(err =>
+            console.error(`[AutoHeal Error] Single event projection failed for ${id}:`, err.message)
+          );
+        }
       }
     } else {
       shipment = getShipmentByIdFromStore(id);
@@ -61,9 +89,12 @@ export const getShipmentById = async (req, res, next) => {
       });
     }
 
+    res.setHeader('x-read-path', readPath);
+
     return res.status(200).json({
       success: true,
-      message: "Query executed: Reconstructed current shipment state via Event Sourcing Engine",
+      message: `Query executed: Retrieved shipment aggregate state (${readPath})`,
+      readPath,
       data: shipment
     });
   } catch (error) {
@@ -106,24 +137,47 @@ export const getShipmentEvents = async (req, res, next) => {
 export const getSystemStats = async (req, res, next) => {
   try {
     let stats;
+    let readPath = 'IN_MEMORY';
+
     if (mongoose.connection.readyState === 1) {
+      const readModelCount = await ShipmentReadModel.countDocuments();
       const totalEvents = await Event.countDocuments();
-      const allEvents = await Event.find({}).sort({ version: 1 }).lean();
-      const shipments = foldAllEventsToShipments(allEvents);
-      stats = {
-        totalShipments: shipments.length,
-        totalEvents,
-        inTransitCount: shipments.filter(s => s.status === 'IN_TRANSIT').length,
-        createdCount: shipments.filter(s => s.status === 'CREATED').length,
-        deliveredCount: shipments.filter(s => s.status === 'DELIVERED').length
-      };
+
+      if (readModelCount > 0) {
+        readPath = 'PROJECTION_READ_MODEL';
+        const inTransitCount = await ShipmentReadModel.countDocuments({ status: 'IN_TRANSIT' });
+        const createdCount = await ShipmentReadModel.countDocuments({ status: 'CREATED' });
+        const deliveredCount = await ShipmentReadModel.countDocuments({ status: 'DELIVERED' });
+
+        stats = {
+          totalShipments: readModelCount,
+          totalEvents,
+          inTransitCount,
+          createdCount,
+          deliveredCount
+        };
+      } else {
+        readPath = 'EVENT_STORE_REPLAY';
+        const allEvents = await Event.find({}).sort({ version: 1 }).lean();
+        const shipments = foldAllEventsToShipments(allEvents);
+        stats = {
+          totalShipments: shipments.length,
+          totalEvents,
+          inTransitCount: shipments.filter(s => s.status === 'IN_TRANSIT').length,
+          createdCount: shipments.filter(s => s.status === 'CREATED').length,
+          deliveredCount: shipments.filter(s => s.status === 'DELIVERED').length
+        };
+      }
     } else {
       stats = getStoreStats();
     }
 
+    res.setHeader('x-read-path', readPath);
+
     return res.status(200).json({
       success: true,
-      message: "Query executed: Fetch Audit Trail system telemetry",
+      message: `Query executed: Fetch Audit Trail system telemetry (${readPath})`,
+      readPath,
       timestamp: new Date().toISOString(),
       stats
     });
@@ -137,30 +191,56 @@ export const searchShipments = async (req, res, next) => {
   try {
     const { q = '', status = 'ALL' } = req.query;
     let shipments = [];
+    let readPath = 'IN_MEMORY';
 
     if (mongoose.connection.readyState === 1) {
-      const allEvents = await Event.find({}).sort({ version: 1 }).lean();
-      shipments = foldAllEventsToShipments(allEvents);
-      if (status && status !== 'ALL') {
-        shipments = shipments.filter(s => s.status === status.toUpperCase());
-      }
-      if (q && q.trim() !== '') {
-        const term = q.toLowerCase().trim();
-        shipments = shipments.filter(s =>
-          s.shipmentId.toLowerCase().includes(term) ||
-          (s.origin && s.origin.toLowerCase().includes(term)) ||
-          (s.destination && s.destination.toLowerCase().includes(term)) ||
-          (s.currentLocation && s.currentLocation.toLowerCase().includes(term)) ||
-          (s.carrier && s.carrier.toLowerCase().includes(term))
-        );
+      const readModelCount = await ShipmentReadModel.countDocuments();
+
+      if (readModelCount > 0) {
+        readPath = 'PROJECTION_READ_MODEL';
+        const queryObj = {};
+        if (status && status !== 'ALL') {
+          queryObj.status = status.toUpperCase();
+        }
+        if (q && q.trim() !== '') {
+          const regex = new RegExp(q.trim(), 'i');
+          queryObj.$or = [
+            { shipmentId: regex },
+            { origin: regex },
+            { destination: regex },
+            { currentLocation: regex },
+            { carrier: regex }
+          ];
+        }
+        shipments = await ShipmentReadModel.find(queryObj).sort({ lastUpdated: -1 }).lean();
+      } else {
+        readPath = 'EVENT_STORE_REPLAY';
+        const allEvents = await Event.find({}).sort({ version: 1 }).lean();
+        shipments = foldAllEventsToShipments(allEvents);
+        if (status && status !== 'ALL') {
+          shipments = shipments.filter(s => s.status === status.toUpperCase());
+        }
+        if (q && q.trim() !== '') {
+          const term = q.toLowerCase().trim();
+          shipments = shipments.filter(s =>
+            s.shipmentId.toLowerCase().includes(term) ||
+            (s.origin && s.origin.toLowerCase().includes(term)) ||
+            (s.destination && s.destination.toLowerCase().includes(term)) ||
+            (s.currentLocation && s.currentLocation.toLowerCase().includes(term)) ||
+            (s.carrier && s.carrier.toLowerCase().includes(term))
+          );
+        }
       }
     } else {
       shipments = searchShipmentsFromStore(q, status);
     }
 
+    res.setHeader('x-read-path', readPath);
+
     return res.status(200).json({
       success: true,
-      message: `Query executed: Search shipments matching term '${q}' with status '${status}'`,
+      message: `Query executed: Search shipments matching term '${q}' with status '${status}' (${readPath})`,
+      readPath,
       query: q,
       statusFilter: status,
       matchCount: shipments.length,
@@ -176,48 +256,107 @@ export const getDashboardSummary = async (req, res, next) => {
   try {
     const { q = '', status = 'ALL' } = req.query;
     let dashboardData;
+    let readPath = 'IN_MEMORY';
 
     if (mongoose.connection.readyState === 1) {
-      const allEvents = await Event.find({}).sort({ timestamp: -1 }).lean();
-      const shipments = foldAllEventsToShipments([...allEvents].reverse());
-      let filteredShipments = shipments;
-      if (status && status !== 'ALL') {
-        filteredShipments = filteredShipments.filter(s => s.status === status.toUpperCase());
-      }
-      if (q && q.trim() !== '') {
-        const term = q.toLowerCase().trim();
-        filteredShipments = filteredShipments.filter(s =>
-          s.shipmentId.toLowerCase().includes(term) ||
-          (s.origin && s.origin.toLowerCase().includes(term)) ||
-          (s.destination && s.destination.toLowerCase().includes(term)) ||
-          (s.currentLocation && s.currentLocation.toLowerCase().includes(term)) ||
-          (s.carrier && s.carrier.toLowerCase().includes(term))
-        );
-      }
+      const readModelCount = await ShipmentReadModel.countDocuments();
 
-      dashboardData = {
-        stats: {
-          totalShipments: shipments.length,
-          totalEvents: allEvents.length,
-          inTransitCount: shipments.filter(s => s.status === 'IN_TRANSIT').length,
-          createdCount: shipments.filter(s => s.status === 'CREATED').length,
-          deliveredCount: shipments.filter(s => s.status === 'DELIVERED').length
-        },
-        activeFilters: {
-          searchTerm: q || null,
-          statusFilter: status || 'ALL'
-        },
-        totalMatches: filteredShipments.length,
-        shipments: filteredShipments,
-        recentEvents: allEvents.slice(0, 10)
-      };
+      if (readModelCount > 0) {
+        readPath = 'PROJECTION_READ_MODEL';
+        const totalShipments = readModelCount;
+        const totalEvents = await Event.countDocuments();
+        const inTransitCount = await ShipmentReadModel.countDocuments({ status: 'IN_TRANSIT' });
+        const createdCount = await ShipmentReadModel.countDocuments({ status: 'CREATED' });
+        const deliveredCount = await ShipmentReadModel.countDocuments({ status: 'DELIVERED' });
+
+        const queryObj = {};
+        if (status && status !== 'ALL') {
+          queryObj.status = status.toUpperCase();
+        }
+        if (q && q.trim() !== '') {
+          const regex = new RegExp(q.trim(), 'i');
+          queryObj.$or = [
+            { shipmentId: regex },
+            { origin: regex },
+            { destination: regex },
+            { currentLocation: regex },
+            { carrier: regex }
+          ];
+        }
+
+        const filteredShipments = await ShipmentReadModel.find(queryObj).sort({ lastUpdated: -1 }).lean();
+        const recentEvents = await Event.find({}).sort({ timestamp: -1 }).limit(10).lean();
+
+        dashboardData = {
+          readPath,
+          stats: {
+            totalShipments,
+            totalEvents,
+            inTransitCount,
+            createdCount,
+            deliveredCount
+          },
+          activeFilters: {
+            searchTerm: q || null,
+            statusFilter: status || 'ALL'
+          },
+          totalMatches: filteredShipments.length,
+          shipments: filteredShipments,
+          recentEvents
+        };
+      } else {
+        readPath = 'EVENT_STORE_REPLAY';
+        const allEvents = await Event.find({}).sort({ timestamp: -1 }).lean();
+        const shipments = foldAllEventsToShipments([...allEvents].reverse());
+        let filteredShipments = shipments;
+        if (status && status !== 'ALL') {
+          filteredShipments = filteredShipments.filter(s => s.status === status.toUpperCase());
+        }
+        if (q && q.trim() !== '') {
+          const term = q.toLowerCase().trim();
+          filteredShipments = filteredShipments.filter(s =>
+            s.shipmentId.toLowerCase().includes(term) ||
+            (s.origin && s.origin.toLowerCase().includes(term)) ||
+            (s.destination && s.destination.toLowerCase().includes(term)) ||
+            (s.currentLocation && s.currentLocation.toLowerCase().includes(term)) ||
+            (s.carrier && s.carrier.toLowerCase().includes(term))
+          );
+        }
+
+        dashboardData = {
+          readPath,
+          stats: {
+            totalShipments: shipments.length,
+            totalEvents: allEvents.length,
+            inTransitCount: shipments.filter(s => s.status === 'IN_TRANSIT').length,
+            createdCount: shipments.filter(s => s.status === 'CREATED').length,
+            deliveredCount: shipments.filter(s => s.status === 'DELIVERED').length
+          },
+          activeFilters: {
+            searchTerm: q || null,
+            statusFilter: status || 'ALL'
+          },
+          totalMatches: filteredShipments.length,
+          shipments: filteredShipments,
+          recentEvents: allEvents.slice(0, 10)
+        };
+
+        if (allEvents.length > 0) {
+          projectionWorker.rebuildAllProjections().catch(err =>
+            console.error('[AutoHeal Error] Dashboard rebuild projections failed:', err.message)
+          );
+        }
+      }
     } else {
       dashboardData = getDashboardSummaryFromStore(q, status);
+      dashboardData.readPath = readPath;
     }
+
+    res.setHeader('x-read-path', readPath);
 
     return res.status(200).json({
       success: true,
-      message: "Query executed: Fetch Dashboard scaffolding summary and telemetry",
+      message: `Query executed: Fetch Dashboard summary and telemetry (${readPath})`,
       timestamp: new Date().toISOString(),
       data: dashboardData
     });
@@ -277,6 +416,20 @@ export const getProjections = async (req, res, next) => {
       message: "Query executed: Fetch denormalized read models (Projections)",
       count: projections.length,
       data: projections
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/queries/projections/status
+export const getProjectionStatus = async (req, res, next) => {
+  try {
+    const statusInfo = await projectionWorker.getProjectionStatus();
+    return res.status(200).json({
+      success: true,
+      message: "Query executed: Fetch Read Model projection sync status",
+      status: statusInfo
     });
   } catch (error) {
     next(error);
