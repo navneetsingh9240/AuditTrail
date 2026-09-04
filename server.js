@@ -18,7 +18,9 @@ app.use("/shipment", queryRoutes);
 app.get("/health",(req,res)=>{
   res.status(200).json({
     success: true,
-    message: "AuditTrail server is running"
+    message: "AuditTrail server is running",
+    timestamp: new
+    Date().toISOString()
   });
 });
 app.use((req, res) => {
