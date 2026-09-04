@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import Event from '../models/Event.js';
 import ShipmentReadModel from '../models/ShipmentReadModel.js';
 import projectionWorker from '../services/projectionWorker.js';
-import { foldEventsToShipmentState, foldAllEventsToShipments } from '../store/eventSourcingEngine.js';
+import { foldEventsToShipmentState, foldAllEventsToShipments, foldEventsUpToPointInTime } from '../store/eventSourcingEngine.js';
 import {
   getAllShipmentsFromStore,
   getShipmentByIdFromStore,
@@ -14,8 +14,10 @@ import {
   getStoreStats,
   searchShipmentsFromStore,
   getDashboardSummaryFromStore,
-  getFilteredEventsFromStore
+  getFilteredEventsFromStore,
+  scrubShipmentStateFromStore
 } from '../store/inMemoryStore.js';
+
 
 // GET /api/queries/shipments
 export const getAllShipments = async (req, res, next) => {
@@ -60,8 +62,16 @@ export const getAllShipments = async (req, res, next) => {
 export const getShipmentById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { timestamp, version, at } = req.query;
+
+    if (timestamp || version || at) {
+      const targetTime = timestamp || at;
+      return await performStateScrubbing(req, res, next, id, targetTime, version);
+    }
+
     let shipment = null;
     let readPath = 'IN_MEMORY';
+
 
     if (mongoose.connection.readyState === 1) {
       const projection = await ShipmentReadModel.findOne({ shipmentId: id }).lean();
@@ -449,6 +459,74 @@ export const rebuildProjections = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Week 3 Day 3: State Scrubbing Engine (Point-in-Time Historical State Replay)
+ * Reconstructs aggregate state up to a target timestamp or version sequence.
+ */
+const performStateScrubbing = async (req, res, next, aggregateId, targetTimestamp, targetVersion) => {
+  let historicalSnapshot = null;
+  let readPath = 'IN_MEMORY_SCRUB';
+
+  if (mongoose.connection.readyState === 1) {
+    const events = await Event.find({ aggregateId }).sort({ version: 1 }).lean();
+    if (events && events.length > 0) {
+      historicalSnapshot = foldEventsUpToPointInTime(events, aggregateId, {
+        targetTimestamp,
+        targetVersion
+      });
+      readPath = 'EVENT_STORE_POINT_IN_TIME_REPLAY';
+    }
+  } else {
+    historicalSnapshot = scrubShipmentStateFromStore(aggregateId, {
+      targetTimestamp,
+      targetVersion
+    });
+  }
+
+  if (!historicalSnapshot) {
+    return res.status(404).json({
+      success: false,
+      error: `No event history found for aggregate ID '${aggregateId}' matching scrub criteria (timestamp: '${targetTimestamp || 'ANY'}', version: '${targetVersion || 'ANY'}').`
+    });
+  }
+
+  res.setHeader('x-read-path', readPath);
+
+  return res.status(200).json({
+    success: true,
+    message: `Query executed: State scrubbing historical snapshot for '${aggregateId}' (${readPath})`,
+    readPath,
+    aggregateId,
+    scrubCriteria: historicalSnapshot.scrubCriteria,
+    replayedEventsCount: historicalSnapshot.replayedEventsCount,
+    totalEventsCount: historicalSnapshot.totalEventsCount,
+    data: historicalSnapshot
+  });
+};
+
+// GET /api/queries/shipment/:id/scrub
+// GET /api/queries/scrub/:id
+// POST /api/queries/scrub
+export const scrubShipmentState = async (req, res, next) => {
+  try {
+    const aggregateId = req.params.id || (req.body && req.body.aggregateId) || req.query.aggregateId;
+    const timestamp = req.query.timestamp || req.query.at || (req.body && (req.body.timestamp || req.body.at));
+    const version = req.query.version || (req.body && req.body.version);
+
+    if (!aggregateId) {
+      return res.status(400).json({
+        success: false,
+        error: 'State scrubbing request requires a valid aggregateId (via path param, query param, or body).'
+      });
+    }
+
+    return await performStateScrubbing(req, res, next, aggregateId, timestamp, version);
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
 

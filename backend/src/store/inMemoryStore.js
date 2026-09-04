@@ -3,6 +3,8 @@
  * Bridges backend command execution and state queries prior to MongoDB integration (Day 5).
  * Enforces event immutability and basic read-model state projections.
  */
+import { foldEventsUpToPointInTime } from './eventSourcingEngine.js';
+
 
 // Append-only Event Stream
 const eventLog = [
@@ -225,5 +227,15 @@ export const getFilteredEventsFromStore = ({ eventType, aggregateId, limit = 50 
   const numLimit = parseInt(limit, 10) || 50;
   return filtered.reverse().slice(0, numLimit);
 };
+
+/**
+ * Week 3 Day 3: Scrub in-memory shipment state up to a specific timestamp or version
+ */
+export const scrubShipmentStateFromStore = (aggregateId, { targetTimestamp, targetVersion } = {}) => {
+  const events = eventLog.filter(evt => evt.aggregateId === aggregateId);
+  if (!events || events.length === 0) return null;
+  return foldEventsUpToPointInTime(events, aggregateId, { targetTimestamp, targetVersion });
+};
+
 
 

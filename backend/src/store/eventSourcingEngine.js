@@ -86,3 +86,48 @@ export function foldAllEventsToShipments(events) {
 
   return result;
 }
+
+/**
+ * State Scrubbing / Time Travel Engine:
+ * Reconstructs historical aggregate state at a specific point in time or target version
+ * by filtering the append-only event stream up to targetTimestamp or targetVersion.
+ */
+export function foldEventsUpToPointInTime(events, aggregateId, { targetTimestamp, targetVersion } = {}) {
+  if (!events || events.length === 0) return null;
+
+  let sortedEvents = [...events].sort((a, b) => a.version - b.version);
+
+  // Filter events up to targetVersion if provided
+  if (targetVersion !== undefined && targetVersion !== null && !isNaN(Number(targetVersion))) {
+    const maxVer = Number(targetVersion);
+    sortedEvents = sortedEvents.filter(e => e.version <= maxVer);
+  }
+
+  // Filter events up to targetTimestamp if provided
+  if (targetTimestamp) {
+    const maxTime = new Date(targetTimestamp).getTime();
+    if (!isNaN(maxTime)) {
+      sortedEvents = sortedEvents.filter(e => {
+        const evtTime = new Date(e.timestamp || e.createdAt).getTime();
+        return evtTime <= maxTime;
+      });
+    }
+  }
+
+  if (sortedEvents.length === 0) return null;
+
+  const historicalState = foldEventsToShipmentState(sortedEvents, aggregateId);
+
+  return {
+    ...historicalState,
+    isHistoricalSnapshot: true,
+    replayedEventsCount: sortedEvents.length,
+    totalEventsCount: events.length,
+    scrubCriteria: {
+      targetTimestamp: targetTimestamp || null,
+      targetVersion: targetVersion !== undefined && targetVersion !== null ? Number(targetVersion) : null
+    },
+    replayedEvents: sortedEvents
+  };
+}
+

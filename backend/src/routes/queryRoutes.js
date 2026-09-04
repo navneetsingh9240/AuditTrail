@@ -9,7 +9,8 @@ import {
   getFilteredEvents,
   getProjections,
   getProjectionStatus,
-  rebuildProjections
+  rebuildProjections,
+  scrubShipmentState
 } from '../controllers/queryController.js';
 
 const router = express.Router();
@@ -30,6 +31,12 @@ router.get('/projections', getProjections);
 router.get('/projections/status', getProjectionStatus);
 router.post('/projections/rebuild', rebuildProjections);
 
+// Week 3 Day 3 State Scrubbing (Point-in-Time State Query) Routes
+router.get('/shipment/:id/scrub', scrubShipmentState);
+router.get('/scrub/:id', scrubShipmentState);
+router.post('/scrub', scrubShipmentState);
+
 export default router;
+
 
 
