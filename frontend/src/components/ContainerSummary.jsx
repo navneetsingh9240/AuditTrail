@@ -6,7 +6,7 @@ export default function ContainerSummary({ state, integrity, totalEvents, isHist
 
   const isTempSpike = state.temperatureStatus === 'WARNING' || state.temperatureStatus === 'CRITICAL';
   const isHumiditySpike = state.humidityStatus === 'WARNING';
-  const isShockSpike = (state.maxShockG || 0) > 3.5;
+  const isShockSpike = (state.maxShockG || 0) > 2.5;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg mb-6">
