@@ -16,7 +16,7 @@ const { Schema, model } = require("mongoose");
 
 const EventSchema = new Schema(
   {
-    aggregateId: { type: String, required: true, index: true },
+    aggregateId:{ type: String, required: true, index: true },
     eventType: { type: String, required: true, trim: true },
     payload: { type: Schema.Types.Mixed, required: true },
     timestamp: { type: Date, required: true, default: Date.now },
@@ -26,6 +26,7 @@ const EventSchema = new Schema(
     // No updatedAt — events are never updated.
     timestamps: { createdAt: true, updatedAt: false },
     collection: "events",
+    strict:"throw"
   }
 );
 
