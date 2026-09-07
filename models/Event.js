@@ -34,6 +34,7 @@ const EventSchema = new Schema(
 // "replay a shipment's history in order" query relies on.
 EventSchema.index({ aggregateId: 1, version: 1 });
 EventSchema.index({ aggregateId: 1, timestamp: -1 });
+EventSchema.index({eventType:1})
 
 
 // ---- Immutability enforcement (Mid-Project Review deliverable) ----
