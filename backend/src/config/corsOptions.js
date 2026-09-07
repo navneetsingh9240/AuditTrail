@@ -11,7 +11,12 @@ const allowedOrigins = [
 export const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, or Postman in dev)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:')
+    ) {
       callback(null, true);
     } else {
       callback(new Error(`CORS Error: Origin '${origin}' is not allowed by CORS policy`));

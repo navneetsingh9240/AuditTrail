@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Event from '../models/Event.js';
+import projectionWorker from '../services/projectionWorker.js';
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/audit_trail";
 
@@ -61,6 +62,8 @@ export async function connectDB() {
     });
     console.log(`[db] Connected successfully -> ${MONGO_URI}`);
     await seedInitialEventsIfEmpty();
+    await projectionWorker.rebuildAllProjections();
+    console.log("[db] Read model projections synchronized.");
     return conn.connection;
   } catch (err) {
     console.warn(`[db] MongoDB connection notice: ${err.message}. Backend running in hybrid mode with in-memory fallback.`);

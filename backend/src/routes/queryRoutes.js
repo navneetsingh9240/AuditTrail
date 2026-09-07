@@ -10,7 +10,9 @@ import {
   getProjections,
   getProjectionStatus,
   rebuildProjections,
-  scrubShipmentState
+  scrubShipmentState,
+  auditImmutability,
+  reconstructShipmentState
 } from '../controllers/queryController.js';
 
 const router = express.Router();
@@ -26,12 +28,17 @@ router.get('/search', searchShipments);
 router.get('/dashboard', getDashboardSummary);
 router.get('/events', getFilteredEvents);
 
+// Mid-Project Review Audit & Reconstruction Check Routes
+router.get('/audit/immutability', auditImmutability);
+router.get('/shipment/:id/reconstruct', reconstructShipmentState);
+router.get('/reconstruct/:id', reconstructShipmentState);
+
 // Week 3 Projections (Read Model) Routes
 router.get('/projections', getProjections);
 router.get('/projections/status', getProjectionStatus);
 router.post('/projections/rebuild', rebuildProjections);
 
-// Week 3 Day 3 State Scrubbing (Point-in-Time State Query) Routes
+// Week 3 State Scrubbing (Point-in-Time State Query) Routes
 router.get('/shipment/:id/scrub', scrubShipmentState);
 router.get('/scrub/:id', scrubShipmentState);
 router.post('/scrub', scrubShipmentState);
