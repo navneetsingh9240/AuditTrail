@@ -6,6 +6,7 @@ import AuditCertificateModal from '../components/AuditCertificateModal';
 import HistoricalSlider from '../components/HistoricalSlider';
 import StateDiffView from '../components/StateDiffView';
 import DeliverySlaIndicator from '../components/DeliverySlaIndicator';
+import CarrierScorecard from '../components/CarrierScorecard';
 import ColdChainSlaMetrics from '../components/ColdChainSlaMetrics';
 import TemperatureChart from '../components/TemperatureChart';
 import RouteMap from '../components/RouteMap';
@@ -186,6 +187,11 @@ export default function ContainerDetails({ containerId, onBack, socket }) {
         containerId={containerId}
         currentVersion={currentState?.currentVersion || 0}
         onCommandSuccess={() => fetchContainerData()}
+      />
+
+      {/* Carrier Quality & SLA Duty-of-Care Scorecard */}
+      <CarrierScorecard
+        state={displayedState}
       />
 
       {/* Cold Chain SLA Analytics */}
