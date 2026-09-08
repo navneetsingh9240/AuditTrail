@@ -80,10 +80,27 @@ const shipmentReadModel = new Map([
 
 /**
  * Append an event to the append-only log and update the read projection model.
+ * Week 4 update: supports OCC expectedVersion checking.
  */
-export const appendEvent = (aggregateId, eventType, payload) => {
+export const appendEvent = (aggregateId, eventType, payload, expectedVersion = undefined) => {
   const existingShipment = shipmentReadModel.get(aggregateId);
-  const nextVersion = existingShipment ? existingShipment.version + 1 : 1;
+  const currentVersion = existingShipment ? existingShipment.version : 0;
+
+  if (expectedVersion !== undefined && expectedVersion !== null && expectedVersion !== '') {
+    const parsedExpected = Number(expectedVersion);
+    if (!isNaN(parsedExpected) && parsedExpected !== currentVersion) {
+      const occErr = new Error(
+        `Optimistic Concurrency Control (OCC) Conflict: Command rejected for aggregate '${aggregateId}'. Expected version ${parsedExpected}, but current version is ${currentVersion}.`
+      );
+      occErr.isOccConflict = true;
+      occErr.expectedVersion = parsedExpected;
+      occErr.currentVersion = currentVersion;
+      occErr.aggregateId = aggregateId;
+      throw occErr;
+    }
+  }
+
+  const nextVersion = currentVersion + 1;
 
   const event = {
     eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,

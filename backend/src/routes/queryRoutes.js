@@ -12,7 +12,8 @@ import {
   rebuildProjections,
   scrubShipmentState,
   auditImmutability,
-  reconstructShipmentState
+  reconstructShipmentState,
+  auditOCC
 } from '../controllers/queryController.js';
 
 const router = express.Router();
@@ -32,6 +33,10 @@ router.get('/events', getFilteredEvents);
 router.get('/audit/immutability', auditImmutability);
 router.get('/shipment/:id/reconstruct', reconstructShipmentState);
 router.get('/reconstruct/:id', reconstructShipmentState);
+
+// Week 4 Concurrency Control (OCC) Audit Routes
+router.get('/audit/occ', auditOCC);
+router.get('/occ/status', auditOCC);
 
 // Week 3 Projections (Read Model) Routes
 router.get('/projections', getProjections);

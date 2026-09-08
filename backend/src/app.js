@@ -18,7 +18,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'UP',
     service: 'Audit Trail Event-Sourced Logistics Ledger API',
-    week: 'Week 1: CQRS Setup & Segregated Routers',
+    week: 'Week 4: Concurrency Control (Optimistic Concurrency Control - OCC) Complete',
     timestamp: new Date().toISOString()
   });
 });

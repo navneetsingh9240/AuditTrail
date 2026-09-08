@@ -3,6 +3,19 @@
  * Ensures incoming write requests adhere to command schema requirements before reaching controllers.
  */
 
+/**
+ * Helper to check optional expectedVersion field for OCC validation
+ */
+const validateExpectedVersionIfPresent = (req, errors) => {
+  const rawVersion = req.body?.expectedVersion ?? req.body?.version ?? req.body?.expectedEventVersion ?? req.headers['x-expected-version'];
+  if (rawVersion !== undefined && rawVersion !== null && rawVersion !== '') {
+    const num = Number(rawVersion);
+    if (!Number.isInteger(num) || num < 0) {
+      errors.push('expectedVersion must be a non-negative integer (e.g. 0, 1, 2...)');
+    }
+  }
+};
+
 export const validateCreateShipmentCommand = (req, res, next) => {
   const { shipmentId, origin, destination } = req.body;
   const errors = [];
@@ -18,6 +31,8 @@ export const validateCreateShipmentCommand = (req, res, next) => {
   if (!destination || typeof destination !== 'string' || destination.trim() === '') {
     errors.push('destination is required and must be a non-empty string');
   }
+
+  validateExpectedVersionIfPresent(req, errors);
 
   if (errors.length > 0) {
     return res.status(400).json({
@@ -43,6 +58,8 @@ export const validateMoveShipmentCommand = (req, res, next) => {
   if (!location || typeof location !== 'string' || location.trim() === '') {
     errors.push('location is required and must be a non-empty string');
   }
+
+  validateExpectedVersionIfPresent(req, errors);
 
   if (errors.length > 0) {
     return res.status(400).json({
@@ -71,6 +88,8 @@ export const validateUpdateStatusCommand = (req, res, next) => {
     errors.push(`status is required and must be one of: ${validStatuses.join(', ')}`);
   }
 
+  validateExpectedVersionIfPresent(req, errors);
+
   if (errors.length > 0) {
     return res.status(400).json({
       success: false,
@@ -83,3 +102,4 @@ export const validateUpdateStatusCommand = (req, res, next) => {
 
   next();
 };
+
