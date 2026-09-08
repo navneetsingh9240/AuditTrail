@@ -10,7 +10,7 @@ const commandRoutes = require("./routes/commands");
 const queryRoutes = require("./routes/queries");
 
 const app = express();
-app.use(express.json());
+app.use(express.json({limit:"100kb"}));
 
 app.use("/shipment", commandRoutes); // writes  (Commands)
 app.use("/shipment", queryRoutes);
