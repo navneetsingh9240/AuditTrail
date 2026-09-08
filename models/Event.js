@@ -20,7 +20,7 @@ const EventSchema = new Schema(
     eventType: { type: String, required: true, trim: true,maxlength: 100 },
     payload: { type: Schema.Types.Mixed, required: true },
     timestamp: { type: Date, required: true, default: Date.now },
-    version: { type: Number, required: true, min: 1 },
+    version: { type: Number, required: true, min: 1,validate:{validator:Number.isInteger,message:"Version must be an integer"} },
   },
   {
     // No updatedAt — events are never updated.
