@@ -17,7 +17,7 @@ const { Schema, model } = require("mongoose");
 const EventSchema = new Schema(
   {
     aggregateId:{ type: String, required: true, index: true },
-    eventType: { type: String, required: true, trim: true },
+    eventType: { type: String, required: true, trim: true,maxlength: 100 },
     payload: { type: Schema.Types.Mixed, required: true },
     timestamp: { type: Date, required: true, default: Date.now },
     version: { type: Number, required: true, min: 1 },
