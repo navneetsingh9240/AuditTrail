@@ -20,6 +20,8 @@ app.listen(PORT, () => {
   console.log(` - POST /api/commands/shipment/create  -> Append SHIPMENT_CREATED event (OCC check)`);
   console.log(` - POST /api/commands/shipment/move    -> Append SHIPMENT_MOVED event (OCC expectedVersion)`);
   console.log(` - POST /api/commands/shipment/status  -> Append STATUS_UPDATED event (OCC expectedVersion)`);
+  console.log(` - POST /api/commands/shipment/sensor  -> Record TEMPERATURE_SPIKE / SENSOR_READING`);
+  console.log(` - POST /api/commands/shipment/custom  -> Append arbitrary domain event with OCC check`);
   console.log(`-----------------------------------------------------------`);
   console.log(`[Read Side - Query Router (/api/queries)]`);
   console.log(` - GET  /api/queries/shipments          -> List all projected shipments`);

@@ -157,7 +157,19 @@ EventSchema.statics.getLatestVersion = async function(aggregateId) {
 };
 
 // ---- Immutability enforcement (Mid-Project Review deliverable) ----
-// Block every mutating query-level operation at the schema level.
+// 1. Block document instance modifications on save()
+EventSchema.pre('save', function (next) {
+  if (!this.isNew) {
+    return next(
+      new Error(
+        `[EventStore] Illegal operation "save" on existing document — the Event Store is strictly append-only. Existing events cannot be mutated.`
+      )
+    );
+  }
+  next();
+});
+
+// 2. Block every mutating query-level operation at the schema level.
 const BLOCKED_OPS = [
   "updateOne",
   "updateMany",

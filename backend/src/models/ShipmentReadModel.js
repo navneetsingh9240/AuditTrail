@@ -31,6 +31,11 @@ const ShipmentReadModelSchema = new Schema(
     },
     lastVersion: { type: Number, default: 0, min: 0 },
     eventsCount: { type: Number, default: 0, min: 0 },
+    // Forensic Sensor Telemetry Metrics
+    latestTemperature: { type: Number, default: null },
+    maxTemperature: { type: Number, default: null },
+    hasSensorAlert: { type: Boolean, default: false },
+    sensorReadingsCount: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now }
   },
   {
@@ -41,6 +46,7 @@ const ShipmentReadModelSchema = new Schema(
 
 // Index for query filtering performance
 ShipmentReadModelSchema.index({ status: 1, lastUpdated: -1 });
+ShipmentReadModelSchema.index({ hasSensorAlert: 1 });
 
 const ShipmentReadModel = model('ShipmentReadModel', ShipmentReadModelSchema);
 

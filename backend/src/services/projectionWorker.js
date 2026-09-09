@@ -55,6 +55,10 @@ class ProjectionWorker extends EventEmitter {
         status: projectedState.status,
         lastVersion: projectedState.version,
         eventsCount: projectedState.eventsCount,
+        latestTemperature: projectedState.latestTemperature,
+        maxTemperature: projectedState.maxTemperature,
+        hasSensorAlert: projectedState.hasTemperatureAlert,
+        sensorReadingsCount: projectedState.temperatureReadings ? projectedState.temperatureReadings.length : 0,
         lastUpdated: projectedState.lastUpdated || timestamp || new Date()
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -94,6 +98,10 @@ class ProjectionWorker extends EventEmitter {
             status: state.status,
             lastVersion: state.version,
             eventsCount: state.eventsCount,
+            latestTemperature: state.latestTemperature,
+            maxTemperature: state.maxTemperature,
+            hasSensorAlert: state.hasTemperatureAlert,
+            sensorReadingsCount: state.temperatureReadings ? state.temperatureReadings.length : 0,
             lastUpdated: state.lastUpdated || new Date()
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }

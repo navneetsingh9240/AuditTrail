@@ -285,3 +285,171 @@ export const updateShipmentStatus = async (req, res, next) => {
   }
 };
 
+// POST /api/commands/shipment/sensor
+export const recordSensorReading = async (req, res, next) => {
+  try {
+    const { shipmentId, temperatureC, humidity, location, notes, eventType: customEventType } = req.body;
+    const expectedVersion = extractExpectedVersion(req);
+
+    let latestVersion = 0;
+    if (mongoose.connection.readyState === 1) {
+      latestVersion = await Event.getLatestVersion(shipmentId);
+    } else {
+      const existing = getShipmentByIdFromStore(shipmentId);
+      latestVersion = existing ? existing.version : 0;
+    }
+
+    if (latestVersion === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `Aggregate not found: Cannot record sensor telemetry for '${shipmentId}' before creation.`
+      });
+    }
+
+    // OCC Check
+    if (expectedVersion !== undefined && expectedVersion !== latestVersion) {
+      return res.status(409).json({
+        success: false,
+        error: 'Optimistic Concurrency Control (OCC) Conflict',
+        message: `Command rejected for aggregate '${shipmentId}': expected version ${expectedVersion}, but current version in database is ${latestVersion}.`,
+        aggregateId: shipmentId,
+        expectedVersion,
+        currentVersion: latestVersion,
+        code: 'CONCURRENCY_CONFLICT',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const isSpike = (temperatureC !== undefined && temperatureC > 8.0) || customEventType === 'TEMPERATURE_SPIKE';
+    const eventType = customEventType || (isSpike ? 'TEMPERATURE_SPIKE' : 'SENSOR_READING');
+
+    const payload = {
+      temperatureC: temperatureC !== undefined ? Number(temperatureC) : undefined,
+      humidity: humidity !== undefined ? Number(humidity) : undefined,
+      location: location || undefined,
+      status: isSpike ? 'ALERT_TEMPERATURE_SPIKE' : undefined,
+      notes: notes || (isSpike ? 'Temperature threshold alert triggered' : 'Periodic sensor telemetry ping')
+    };
+
+    let generatedEvent;
+
+    if (mongoose.connection.readyState === 1) {
+      const nextVersion = latestVersion + 1;
+      const doc = await Event.create({
+        aggregateId: shipmentId,
+        eventType,
+        payload,
+        version: nextVersion,
+        timestamp: new Date()
+      });
+      generatedEvent = doc.toObject();
+      appendEvent(shipmentId, eventType, payload, expectedVersion);
+      projectionWorker.emit('event:appended', generatedEvent);
+    } else {
+      generatedEvent = appendEvent(shipmentId, eventType, payload, expectedVersion);
+    }
+
+    res.setHeader('x-command-id', `cmd_${Date.now()}`);
+    res.setHeader('x-event-version', generatedEvent.version);
+
+    return res.status(202).json({
+      success: true,
+      message: `Command Accepted & Event Persisted: ${eventType}`,
+      command: {
+        type: "RECORD_SENSOR_READING",
+        aggregateId: shipmentId,
+        version: generatedEvent.version,
+        payload,
+        timestamp: generatedEvent.timestamp
+      },
+      event: generatedEvent
+    });
+  } catch (error) {
+    handleCommandError(error, res, next, req.body?.shipmentId);
+  }
+};
+
+// POST /api/commands/shipment/custom
+export const appendCustomEvent = async (req, res, next) => {
+  try {
+    const { aggregateId: reqAggId, shipmentId, eventType, payload } = req.body;
+    const aggregateId = reqAggId || shipmentId;
+    const expectedVersion = extractExpectedVersion(req);
+
+    const normEventType = String(eventType).trim().toUpperCase();
+
+    let latestVersion = 0;
+    if (mongoose.connection.readyState === 1) {
+      latestVersion = await Event.getLatestVersion(aggregateId);
+    } else {
+      const existing = getShipmentByIdFromStore(aggregateId);
+      latestVersion = existing ? existing.version : 0;
+    }
+
+    // If new shipment creation type
+    if (normEventType === 'SHIPMENT_CREATED' || normEventType === 'CONTAINER_CREATED') {
+      if (latestVersion > 0) {
+        return res.status(409).json({
+          success: false,
+          error: `Aggregate conflict: Aggregate '${aggregateId}' already exists.`
+        });
+      }
+    } else if (latestVersion === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `Aggregate not found: Cannot append event '${normEventType}' to non-existent aggregate '${aggregateId}'.`
+      });
+    }
+
+    // OCC Check
+    if (expectedVersion !== undefined && expectedVersion !== latestVersion) {
+      return res.status(409).json({
+        success: false,
+        error: 'Optimistic Concurrency Control (OCC) Conflict',
+        message: `Command rejected for aggregate '${aggregateId}': expected version ${expectedVersion}, but current version in database is ${latestVersion}.`,
+        aggregateId,
+        expectedVersion,
+        currentVersion: latestVersion,
+        code: 'CONCURRENCY_CONFLICT',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    let generatedEvent;
+
+    if (mongoose.connection.readyState === 1) {
+      const nextVersion = latestVersion + 1;
+      const doc = await Event.create({
+        aggregateId,
+        eventType: normEventType,
+        payload,
+        version: nextVersion,
+        timestamp: new Date()
+      });
+      generatedEvent = doc.toObject();
+      appendEvent(aggregateId, normEventType, payload, expectedVersion);
+      projectionWorker.emit('event:appended', generatedEvent);
+    } else {
+      generatedEvent = appendEvent(aggregateId, normEventType, payload, expectedVersion);
+    }
+
+    res.setHeader('x-command-id', `cmd_${Date.now()}`);
+    res.setHeader('x-event-version', generatedEvent.version);
+
+    return res.status(202).json({
+      success: true,
+      message: `Command Accepted & Custom Event Persisted: ${normEventType}`,
+      command: {
+        type: "APPEND_CUSTOM_EVENT",
+        aggregateId,
+        version: generatedEvent.version,
+        payload,
+        timestamp: generatedEvent.timestamp
+      },
+      event: generatedEvent
+    });
+  } catch (error) {
+    handleCommandError(error, res, next, req.body?.aggregateId || req.body?.shipmentId);
+  }
+};
+

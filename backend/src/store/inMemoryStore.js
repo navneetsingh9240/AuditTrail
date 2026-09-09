@@ -35,6 +35,19 @@ const eventLog = [
   },
   {
     eventId: "evt_seed_003",
+    aggregateId: "SHP-1001",
+    eventType: "TEMPERATURE_SPIKE",
+    payload: {
+      location: "Pacific Transit Zone B",
+      status: "ALERT_TEMPERATURE_SPIKE",
+      temperatureC: 12.8,
+      notes: "Reefer cooling compressor power interruption detected"
+    },
+    version: 3,
+    timestamp: "2026-08-20T04:15:00.000Z"
+  },
+  {
+    eventId: "evt_seed_004",
     aggregateId: "SHP-1002",
     eventType: "SHIPMENT_CREATED",
     payload: {
@@ -45,38 +58,89 @@ const eventLog = [
     },
     version: 1,
     timestamp: "2026-08-19T10:15:00.000Z"
+  },
+  {
+    eventId: "evt_seed_005",
+    aggregateId: "CONT-9082",
+    eventType: "CONTAINER_CREATED",
+    payload: {
+      origin: "Shenzhen Port",
+      destination: "Port of Long Beach",
+      carrier: "Global Shipping Co",
+      status: "CREATED"
+    },
+    version: 1,
+    timestamp: "2026-08-18T06:00:00.000Z"
+  },
+  {
+    eventId: "evt_seed_006",
+    aggregateId: "CONT-9082",
+    eventType: "LOADED_ON_SHIP",
+    payload: {
+      location: "Vessel Pacific Empress",
+      carrier: "Global Shipping Co",
+      status: "LOADED_ON_SHIP"
+    },
+    version: 2,
+    timestamp: "2026-08-18T14:20:00.000Z"
+  },
+  {
+    eventId: "evt_seed_007",
+    aggregateId: "CONT-9082",
+    eventType: "TEMPERATURE_SPIKE",
+    payload: {
+      location: "Mid-Pacific Co-ordinates 32N 165W",
+      status: "ALERT_TEMPERATURE_SPIKE",
+      temperatureC: 14.5,
+      humidity: 88,
+      notes: "Critical cold-chain threshold breached"
+    },
+    version: 3,
+    timestamp: "2026-08-21T02:10:00.000Z"
+  },
+  {
+    eventId: "evt_seed_008",
+    aggregateId: "CONT-9082",
+    eventType: "ARRIVED_AT_PORT",
+    payload: {
+      location: "Port of Long Beach Terminal 4",
+      status: "ARRIVED_AT_PORT"
+    },
+    version: 4,
+    timestamp: "2026-08-24T18:45:00.000Z"
   }
 ];
 
 // Projected Read Models Map
-const shipmentReadModel = new Map([
-  [
-    "SHP-1001",
-    {
-      shipmentId: "SHP-1001",
-      origin: "Port of Shanghai",
-      destination: "Port of Los Angeles",
-      carrier: "Oceanic Cargo Ltd",
-      currentLocation: "Pacific Transit Zone A",
-      status: "IN_TRANSIT",
-      version: 2,
-      lastUpdated: "2026-08-19T12:30:00.000Z"
+const shipmentReadModel = new Map();
+
+// Helper to refresh read model projection from event log
+const refreshReadModelForAggregate = (aggregateId) => {
+  const aggregateEvents = eventLog.filter(e => e.aggregateId === aggregateId);
+  if (aggregateEvents.length > 0) {
+    const foldedState = foldEventsToShipmentState(aggregateEvents, aggregateId);
+    if (foldedState) {
+      shipmentReadModel.set(aggregateId, {
+        shipmentId: aggregateId,
+        origin: foldedState.origin,
+        destination: foldedState.destination,
+        carrier: foldedState.carrier,
+        currentLocation: foldedState.currentLocation,
+        status: foldedState.status,
+        version: foldedState.version,
+        eventsCount: foldedState.eventsCount,
+        latestTemperature: foldedState.latestTemperature,
+        maxTemperature: foldedState.maxTemperature,
+        hasSensorAlert: foldedState.hasTemperatureAlert,
+        sensorReadingsCount: foldedState.temperatureReadings ? foldedState.temperatureReadings.length : 0,
+        lastUpdated: foldedState.lastUpdated || new Date().toISOString()
+      });
     }
-  ],
-  [
-    "SHP-1002",
-    {
-      shipmentId: "SHP-1002",
-      origin: "Rotterdam Terminal",
-      destination: "Hamburg Hub",
-      carrier: "EuroFreight Logistics",
-      currentLocation: "Rotterdam Terminal",
-      status: "CREATED",
-      version: 1,
-      lastUpdated: "2026-08-19T10:15:00.000Z"
-    }
-  ]
-]);
+  }
+};
+
+// Initialize in-memory projections for seed data
+['SHP-1001', 'SHP-1002', 'CONT-9082'].forEach(id => refreshReadModelForAggregate(id));
 
 /**
  * Append an event to the append-only log and update the read projection model.
@@ -105,7 +169,7 @@ export const appendEvent = (aggregateId, eventType, payload, expectedVersion = u
   const event = {
     eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
     aggregateId,
-    eventType,
+    eventType: String(eventType).trim().toUpperCase(),
     payload,
     version: nextVersion,
     timestamp: new Date().toISOString()
@@ -113,30 +177,8 @@ export const appendEvent = (aggregateId, eventType, payload, expectedVersion = u
 
   eventLog.push(event);
 
-  // Update Read Model Projection
-  if (eventType === "SHIPMENT_CREATED") {
-    shipmentReadModel.set(aggregateId, {
-      shipmentId: aggregateId,
-      origin: payload.origin,
-      destination: payload.destination,
-      carrier: payload.carrier || "Standard Carrier",
-      currentLocation: payload.origin,
-      status: "CREATED",
-      version: 1,
-      lastUpdated: event.timestamp
-    });
-  } else if (existingShipment) {
-    const updatedModel = {
-      ...existingShipment,
-      version: nextVersion,
-      lastUpdated: event.timestamp
-    };
-
-    if (payload.location) updatedModel.currentLocation = payload.location;
-    if (payload.status) updatedModel.status = payload.status;
-
-    shipmentReadModel.set(aggregateId, updatedModel);
-  }
+  // Update Read Model Projection via state folding helper
+  refreshReadModelForAggregate(aggregateId);
 
   return event;
 };

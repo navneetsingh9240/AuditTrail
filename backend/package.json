@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node test/testSuite.js",
+    "test:occ": "node test/occTest.js",
+    "seed": "node src/seed.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
