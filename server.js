@@ -11,6 +11,10 @@ const queryRoutes = require("./routes/queries");
 
 const app = express();
 app.use(express.json({limit:"100kb"}));
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+});
 
 app.use("/shipment", commandRoutes); // writes  (Commands)
 app.use("/shipment", queryRoutes);
