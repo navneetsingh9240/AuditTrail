@@ -4,6 +4,8 @@ import { Shield, Container, Search, Database, Layers, Radio } from 'lucide-react
 import Dashboard from './pages/Dashboard';
 import ContainerDetails from './pages/ContainerDetails';
 import SearchBar from './components/SearchBar';
+import NotificationDrawer from './components/NotificationDrawer';
+import ThemeToggle from './components/ThemeToggle';
 import * as api from './services/api';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
@@ -14,6 +16,7 @@ export default function App() {
   const [containersList, setContainersList] = useState([]);
   const [socket, setSocket] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   const fetchContainerIndex = async () => {
     try {
@@ -42,8 +45,15 @@ export default function App() {
       setSocketConnected(false);
     });
 
-    newSocket.on('eventAppended', () => {
+    newSocket.on('eventAppended', (data) => {
       fetchContainerIndex();
+      if (data?.event) {
+        const evt = data.event;
+        const anomalyTypes = ['TEMPERATURE_SPIKE', 'HUMIDITY_SPIKE', 'DOOR_OPENED', 'GEOFENCE_EXITED', 'SECURITY_ALERT'];
+        if (anomalyTypes.includes(evt.eventType)) {
+          setNotifications((prev) => [evt, ...prev].slice(0, 20)); // keep last 20 notifications
+        }
+      }
     });
 
     setSocket(newSocket);
@@ -103,6 +113,13 @@ export default function App() {
                 Audit Stream
               </button>
             </nav>
+
+            <NotificationDrawer
+              notifications={notifications}
+              onClearNotifications={() => setNotifications([])}
+            />
+
+            <ThemeToggle />
 
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-400">
               <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
