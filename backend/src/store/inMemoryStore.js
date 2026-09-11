@@ -147,8 +147,11 @@ const refreshReadModelForAggregate = (aggregateId) => {
  * Week 4 update: supports OCC expectedVersion checking.
  */
 export const appendEvent = (aggregateId, eventType, payload, expectedVersion = undefined) => {
+  const aggregateEvents = eventLog.filter(e => e.aggregateId === aggregateId);
   const existingShipment = shipmentReadModel.get(aggregateId);
-  const currentVersion = existingShipment ? existingShipment.version : 0;
+  const currentVersion = aggregateEvents.length > 0 
+    ? Math.max(...aggregateEvents.map(e => e.version)) 
+    : (existingShipment ? existingShipment.version : 0);
 
   if (expectedVersion !== undefined && expectedVersion !== null && expectedVersion !== '') {
     const parsedExpected = Number(expectedVersion);

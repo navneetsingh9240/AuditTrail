@@ -184,11 +184,15 @@ const BLOCKED_OPS = [
 ];
 
 BLOCKED_OPS.forEach((op) => {
-  EventSchema.pre(op, function blockMutation() {
-    throw new Error(
+  EventSchema.pre(op, function blockMutation(next) {
+    const err = new Error(
       `[EventStore] Illegal operation "${op}" — the Event Store is append-only. ` +
       `Events cannot be updated or deleted, only appended.`
     );
+    if (typeof next === 'function') {
+      return next(err);
+    }
+    throw err;
   });
 });
 

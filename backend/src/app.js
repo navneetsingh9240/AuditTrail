@@ -32,9 +32,11 @@ app.use('/commands', commandRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/queries', queryRoutes);
 
-// Root fallback mounts for direct endpoints
+// Root & API fallback mounts for direct endpoints
 app.use('/api', commandRoutes);
 app.use('/api', queryRoutes);
+app.use('/', commandRoutes);
+app.use('/', queryRoutes);
 
 // Centralized Error Handling Middleware
 app.use(errorHandler);
