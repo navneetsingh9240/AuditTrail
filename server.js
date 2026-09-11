@@ -39,7 +39,17 @@ const PORT = process.env.PORT || 3000;
 
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`[server] listening on :${PORT}`));
+    const server = app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
+process.on("SIGTERM", () => {
+    console.log("SIGTERM received. Shutting down server...");
+    server.close(() => {
+        console.log("Server closed.");
+        process.exit(0);
+    });
+});
   })
   .catch((err) => {
     console.error("[server] failed to connect to DB:", err);
