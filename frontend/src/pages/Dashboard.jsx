@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import * as api from '../services/api';
 import FleetRiskHeatmap from '../components/FleetRiskHeatmap';
+import CompareContainersModal from '../components/CompareContainersModal';
 
 export default function Dashboard({ onSelectContainer }) {
   const [activeTab, setActiveTab] = useState('LEDGER');
@@ -25,6 +26,7 @@ export default function Dashboard({ onSelectContainer }) {
   const [owner, setOwner] = useState('Global Logistics Corp');
   const [origin, setOrigin] = useState('Singapore Terminal');
   const [destination, setDestination] = useState('Mumbai Port');
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -154,6 +156,11 @@ export default function Dashboard({ onSelectContainer }) {
         <FleetRiskHeatmap riskData={riskData} />
       )}
 
+      {/* Multi-Container Fleet Comparison Matrix Modal */}
+      {showCompareModal && (
+        <CompareContainersModal onClose={() => setShowCompareModal(false)} />
+      )}
+
       {/* Main Containers Ledger List */}
       {activeTab === 'LEDGER' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
@@ -167,12 +174,21 @@ export default function Dashboard({ onSelectContainer }) {
               </p>
             </div>
 
-            <button
-              onClick={fetchDashboardData}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-mono font-medium transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Index
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCompareModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Layers className="w-3.5 h-3.5 text-blue-400" /> Compare Fleet Containers
+              </button>
+
+              <button
+                onClick={fetchDashboardData}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-mono font-medium transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Index
+              </button>
+            </div>
           </div>
 
           {/* Create Container Form Accordion / Box */}
