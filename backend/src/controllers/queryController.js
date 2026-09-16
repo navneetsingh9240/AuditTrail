@@ -15,6 +15,7 @@ import {
   searchShipmentsFromStore,
   getDashboardSummaryFromStore,
   getFilteredEventsFromStore,
+  exportEventsToCSV,
   scrubShipmentStateFromStore
 } from '../store/inMemoryStore.js';
 
@@ -375,10 +376,79 @@ export const getDashboardSummary = async (req, res, next) => {
   }
 };
 
-// GET /api/queries/events?eventType=...&aggregateId=...&limit=...
+// GET /api/queries/events?eventType=...&aggregateId=...&startDate=...&endDate=...&page=...&limit=...
 export const getFilteredEvents = async (req, res, next) => {
   try {
-    const { eventType, aggregateId, limit } = req.query;
+    const { eventType, aggregateId, startDate, endDate, page = 1, limit = 50 } = req.query;
+    let events = [];
+    let total = 0;
+    let totalPages = 1;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const numLimit = Math.max(1, parseInt(limit, 10) || 50);
+
+    if (mongoose.connection.readyState === 1) {
+      const filter = {};
+      if (eventType && eventType.toUpperCase() !== 'ALL') {
+        filter.eventType = eventType.toUpperCase();
+      }
+      if (aggregateId && aggregateId.trim() !== '') {
+        filter.aggregateId = new RegExp(aggregateId.trim(), 'i');
+      }
+      if (startDate || endDate) {
+        filter.timestamp = {};
+        if (startDate) {
+          const s = new Date(startDate);
+          if (!isNaN(s.getTime())) filter.timestamp.$gte = s;
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          if (!isNaN(e.getTime())) filter.timestamp.$lte = e;
+        }
+      }
+
+      total = await Event.countDocuments(filter);
+      totalPages = Math.ceil(total / numLimit) || 1;
+      events = await Event.find(filter)
+        .sort({ timestamp: -1 })
+        .skip((pageNum - 1) * numLimit)
+        .limit(numLimit)
+        .lean();
+    } else {
+      const result = getFilteredEventsFromStore({ eventType, aggregateId, startDate, endDate, page: pageNum, limit: numLimit });
+      events = Array.isArray(result) ? result : (result.events || []);
+      total = result.total !== undefined ? result.total : events.length;
+      totalPages = result.totalPages !== undefined ? result.totalPages : 1;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Query executed: Fetch filtered event stream history",
+      filters: {
+        eventType: eventType || 'ALL',
+        aggregateId: aggregateId || null,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        page: pageNum,
+        limit: numLimit
+      },
+      pagination: {
+        total,
+        page: pageNum,
+        limit: numLimit,
+        totalPages
+      },
+      count: events.length,
+      events
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/queries/events/export
+export const exportEventsCSV = async (req, res, next) => {
+  try {
+    const { eventType, aggregateId, startDate, endDate } = req.query;
     let events = [];
 
     if (mongoose.connection.readyState === 1) {
@@ -389,23 +459,27 @@ export const getFilteredEvents = async (req, res, next) => {
       if (aggregateId && aggregateId.trim() !== '') {
         filter.aggregateId = new RegExp(aggregateId.trim(), 'i');
       }
-      const numLimit = parseInt(limit, 10) || 50;
-      events = await Event.find(filter).sort({ timestamp: -1 }).limit(numLimit).lean();
+      if (startDate || endDate) {
+        filter.timestamp = {};
+        if (startDate) {
+          const s = new Date(startDate);
+          if (!isNaN(s.getTime())) filter.timestamp.$gte = s;
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          if (!isNaN(e.getTime())) filter.timestamp.$lte = e;
+        }
+      }
+      events = await Event.find(filter).sort({ timestamp: -1 }).lean();
     } else {
-      events = getFilteredEventsFromStore({ eventType, aggregateId, limit });
+      const result = getFilteredEventsFromStore({ eventType, aggregateId, startDate, endDate, limit: 10000 });
+      events = Array.isArray(result) ? result : (result.events || []);
     }
 
-    return res.status(200).json({
-      success: true,
-      message: "Query executed: Fetch filtered event stream history",
-      filters: {
-        eventType: eventType || 'ALL',
-        aggregateId: aggregateId || null,
-        limit: parseInt(limit, 10) || 50
-      },
-      count: events.length,
-      events
-    });
+    const csvData = exportEventsToCSV(events);
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="audit_trail_events_${Date.now()}.csv"`);
+    return res.status(200).send(csvData);
   } catch (error) {
     next(error);
   }

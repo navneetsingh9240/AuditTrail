@@ -177,6 +177,40 @@ async function runTestSuite() {
         `Status: ${resDashboard.status}, Events: ${bodyDashboard?.data?.stats?.totalEvents}`
       );
 
+      // Test 12: CSV Export Endpoint
+      const resExport = await fetch(`${BASE_URL}/api/queries/events/export`);
+      const textExport = await resExport.text();
+      assert(
+        resExport.status === 200 && resExport.headers.get('content-type').includes('text/csv') && textExport.includes('Event ID'),
+        'GET /api/queries/events/export generates text/csv file stream',
+        `Status: ${resExport.status}, Content-Type: ${resExport.headers.get('content-type')}`
+      );
+
+      // Test 13: Sensor Telemetry Range Validation Rejection
+      const resInvalidSensor = await fetch(`${BASE_URL}/api/commands/shipment/sensor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipmentId: testId,
+          temperatureC: 150.0 // Invalid temperature > 100 °C
+        })
+      });
+      const bodyInvalidSensor = await resInvalidSensor.json();
+      assert(
+        resInvalidSensor.status === 400 && bodyInvalidSensor.success === false,
+        'POST /api/commands/shipment/sensor rejects out-of-bounds temperature (>100°C) with HTTP 400',
+        `Status: ${resInvalidSensor.status}, Error: ${bodyInvalidSensor.error}`
+      );
+
+      // Test 14: Filtered Event Stream with Pagination
+      const resPageEvents = await fetch(`${BASE_URL}/api/queries/events?page=1&limit=5`);
+      const bodyPageEvents = await resPageEvents.json();
+      assert(
+        resPageEvents.status === 200 && bodyPageEvents.pagination && bodyPageEvents.pagination.limit === 5,
+        'GET /api/queries/events?page=1&limit=5 returns paginated event log',
+        `Status: ${resPageEvents.status}, Count: ${bodyPageEvents.count}, Total: ${bodyPageEvents.pagination?.total}`
+      );
+
       console.log(`\n===========================================================`);
       console.log(`🏁 Master Test Results: ${passed} Passed, ${failed} Failed`);
       console.log(`===========================================================\n`);

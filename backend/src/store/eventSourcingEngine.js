@@ -12,6 +12,7 @@ export function foldEventsToShipmentState(events, aggregateId) {
 
   const state = {
     shipmentId: aggregateId,
+    containerId: aggregateId,
     origin: '',
     destination: '',
     carrier: '',

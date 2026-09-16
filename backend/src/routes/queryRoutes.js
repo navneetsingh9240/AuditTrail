@@ -7,6 +7,7 @@ import {
   searchShipments,
   getDashboardSummary,
   getFilteredEvents,
+  exportEventsCSV,
   getProjections,
   getProjectionStatus,
   rebuildProjections,
@@ -20,18 +21,26 @@ const router = express.Router();
 
 // CQRS Query Routes (Read Side Operations)
 router.get('/shipments', getAllShipments);
+router.get('/containers', getAllShipments);
+
 router.get('/shipment/:id', getShipmentById);
+router.get('/container/:id', getShipmentById);
+
 router.get('/shipment/:id/events', getShipmentEvents);
+router.get('/container/:id/events', getShipmentEvents);
+
 router.get('/stats', getSystemStats);
 
 // Day 4 & 5 Dashboard & Event Stream Query Routes
 router.get('/search', searchShipments);
 router.get('/dashboard', getDashboardSummary);
 router.get('/events', getFilteredEvents);
+router.get('/events/export', exportEventsCSV);
 
 // Mid-Project Review Audit & Reconstruction Check Routes
 router.get('/audit/immutability', auditImmutability);
 router.get('/shipment/:id/reconstruct', reconstructShipmentState);
+router.get('/container/:id/reconstruct', reconstructShipmentState);
 router.get('/reconstruct/:id', reconstructShipmentState);
 
 // Week 4 Concurrency Control (OCC) Audit Routes
@@ -45,6 +54,7 @@ router.post('/projections/rebuild', rebuildProjections);
 
 // Week 3 State Scrubbing (Point-in-Time State Query) Routes
 router.get('/shipment/:id/scrub', scrubShipmentState);
+router.get('/container/:id/scrub', scrubShipmentState);
 router.get('/scrub/:id', scrubShipmentState);
 router.post('/scrub', scrubShipmentState);
 

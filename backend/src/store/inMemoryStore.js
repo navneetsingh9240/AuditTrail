@@ -272,9 +272,9 @@ export const getDashboardSummaryFromStore = (searchTerm = '', statusFilter = 'AL
 };
 
 /**
- * Day 5: Get filtered append-only event stream by eventType, aggregateId, and limit.
+ * Day 5: Get filtered append-only event stream by eventType, aggregateId, startDate, endDate, page, limit.
  */
-export const getFilteredEventsFromStore = ({ eventType, aggregateId, limit = 50 } = {}) => {
+export const getFilteredEventsFromStore = ({ eventType, aggregateId, startDate, endDate, page = 1, limit = 50 } = {}) => {
   let filtered = [...eventLog];
 
   if (eventType && eventType.toUpperCase() !== 'ALL') {
@@ -286,8 +286,49 @@ export const getFilteredEventsFromStore = ({ eventType, aggregateId, limit = 50 
     filtered = filtered.filter(evt => evt.aggregateId.toLowerCase().includes(term));
   }
 
-  const numLimit = parseInt(limit, 10) || 50;
-  return filtered.reverse().slice(0, numLimit);
+  if (startDate) {
+    const startMs = new Date(startDate).getTime();
+    if (!isNaN(startMs)) {
+      filtered = filtered.filter(evt => new Date(evt.timestamp).getTime() >= startMs);
+    }
+  }
+
+  if (endDate) {
+    const endMs = new Date(endDate).getTime();
+    if (!isNaN(endMs)) {
+      filtered = filtered.filter(evt => new Date(evt.timestamp).getTime() <= endMs);
+    }
+  }
+
+  filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const numLimit = Math.max(1, parseInt(limit, 10) || 50);
+  const startIndex = (pageNum - 1) * numLimit;
+
+  return {
+    total: filtered.length,
+    page: pageNum,
+    limit: numLimit,
+    totalPages: Math.ceil(filtered.length / numLimit) || 1,
+    events: filtered.slice(startIndex, startIndex + numLimit)
+  };
+};
+
+/**
+ * Format events array into CSV format for audit compliance export.
+ */
+export const exportEventsToCSV = (events) => {
+  const headers = ['Event ID', 'Aggregate ID', 'Event Type', 'Version', 'Timestamp', 'Payload JSON'];
+  const rows = events.map(e => [
+    `"${e.eventId || ''}"`,
+    `"${e.aggregateId || ''}"`,
+    `"${e.eventType || ''}"`,
+    e.version,
+    `"${e.timestamp || ''}"`,
+    `"${JSON.stringify(e.payload || {}).replace(/"/g, '""')}"`
+  ]);
+  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
 };
 
 /**

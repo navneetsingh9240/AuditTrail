@@ -13,12 +13,21 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(requestLogger);
 
-// Health Check Endpoint (Week 1 CQRS Architecture)
+// Health Check Endpoint (Week 1 CQRS Architecture & Telemetry)
 app.get('/health', (req, res) => {
+  const memory = process.memoryUsage();
   res.status(200).json({
     status: 'UP',
     service: 'Audit Trail Event-Sourced Logistics Ledger API',
+    architecture: 'CQRS + Event Sourcing Engine + Optimistic Concurrency Control (OCC)',
     week: 'Week 4: Concurrency Control (Optimistic Concurrency Control - OCC) Complete',
+    uptimeSeconds: Math.floor(process.uptime()),
+    nodeVersion: process.version,
+    memoryUsage: {
+      rssMB: (memory.rss / (1024 * 1024)).toFixed(2),
+      heapTotalMB: (memory.heapTotal / (1024 * 1024)).toFixed(2),
+      heapUsedMB: (memory.heapUsed / (1024 * 1024)).toFixed(2)
+    },
     timestamp: new Date().toISOString()
   });
 });

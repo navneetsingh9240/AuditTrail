@@ -17,7 +17,10 @@ const validateExpectedVersionIfPresent = (req, errors) => {
 };
 
 export const validateCreateShipmentCommand = (req, res, next) => {
-  const { shipmentId, origin, destination } = req.body;
+  if (req.body) {
+    req.body.shipmentId = req.body.shipmentId || req.body.containerId || req.body.aggregateId;
+  }
+  const { shipmentId, origin, destination } = req.body || {};
   const errors = [];
 
   if (!shipmentId || typeof shipmentId !== 'string' || shipmentId.trim() === '') {
@@ -48,7 +51,10 @@ export const validateCreateShipmentCommand = (req, res, next) => {
 };
 
 export const validateMoveShipmentCommand = (req, res, next) => {
-  const { shipmentId, location } = req.body;
+  if (req.body) {
+    req.body.shipmentId = req.body.shipmentId || req.body.containerId || req.body.aggregateId;
+  }
+  const { shipmentId, location } = req.body || {};
   const errors = [];
 
   if (!shipmentId || typeof shipmentId !== 'string' || shipmentId.trim() === '') {
@@ -75,7 +81,10 @@ export const validateMoveShipmentCommand = (req, res, next) => {
 };
 
 export const validateUpdateStatusCommand = (req, res, next) => {
-  const { shipmentId, status } = req.body;
+  if (req.body) {
+    req.body.shipmentId = req.body.shipmentId || req.body.containerId || req.body.aggregateId;
+  }
+  const { shipmentId, status } = req.body || {};
   const errors = [];
 
   const validStatuses = ['CREATED', 'IN_TRANSIT', 'DELIVERED', 'DELAYED', 'ALERT', 'ALERT_TEMPERATURE_SPIKE', 'CUSTOMS_HOLD', 'LOADED_ON_SHIP', 'ARRIVED_AT_PORT'];
@@ -104,15 +113,28 @@ export const validateUpdateStatusCommand = (req, res, next) => {
 };
 
 export const validateSensorCommand = (req, res, next) => {
-  const { shipmentId, temperatureC, location, eventType } = req.body;
+  if (req.body) {
+    req.body.shipmentId = req.body.shipmentId || req.body.containerId || req.body.aggregateId;
+  }
+  const { shipmentId, temperatureC, humidity, location, eventType } = req.body || {};
   const errors = [];
 
   if (!shipmentId || typeof shipmentId !== 'string' || shipmentId.trim() === '') {
     errors.push('shipmentId is required and must be a non-empty string');
   }
 
-  if (temperatureC !== undefined && temperatureC !== null && (typeof temperatureC !== 'number' || isNaN(temperatureC))) {
-    errors.push('temperatureC must be a valid number if provided');
+  if (temperatureC !== undefined && temperatureC !== null) {
+    const tempNum = Number(temperatureC);
+    if (isNaN(tempNum) || tempNum < -100 || tempNum > 100) {
+      errors.push('temperatureC must be a valid number between -100.0 and +100.0 °C');
+    }
+  }
+
+  if (humidity !== undefined && humidity !== null) {
+    const humNum = Number(humidity);
+    if (isNaN(humNum) || humNum < 0 || humNum > 100) {
+      errors.push('humidity must be a valid percentage between 0 and 100%');
+    }
   }
 
   validateExpectedVersionIfPresent(req, errors);
