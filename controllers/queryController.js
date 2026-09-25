@@ -33,11 +33,31 @@ async function getCurrentState(req, res) {
 }
 
 // GET /shipment/:id/history -> raw event stream, for the Timeline UI
-async function getHistory(req, res) {
-  const { getEventStream } = require("../services/eventStore");
-  const events = await getEventStream(req.params.id);
-  return res.json({ aggregateId: req.params.id, events });
-}
+async function getStateAsOf(req, res) {
+    const shipmentId = req.params.id;
+    const { asOf } = req.query;
+
+    if (!shipmentId || !shipmentId.trim()) {
+        return res.status(400).json({
+            error: "Shipment ID is required"
+        });
+    }
+
+    if (!asOf) {
+        return res.status(400).json({
+            error: "asOf timestamp is required"
+        });
+    }
+
+    const asOfDate = new Date(asOf);
+
+    if (Number.isNaN(asOfDate.getTime())) {
+        return res.status(400).json({
+            error: "Invalid asOf timestamp"
+        });
+    }
+
+    
 
 // GET /shipment/:id/as-of?timestamp=... -> "rewind time" reconstruction
 
