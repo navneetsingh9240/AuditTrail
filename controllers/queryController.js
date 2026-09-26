@@ -11,25 +11,34 @@ const { applyEventToReadModel } = require("../workers/projectionWorker");
 
 // GET /shipment/:id  -> current state, fast path via Read Model
 async function getCurrentState(req, res) {
-    const shipmentId = req.params.id;
+    try {
+        const shipmentId = req.params.id;
 
-    if (!shipmentId || !shipmentId.trim()) {
-        return res.status(400).json({
-            error: "Shipment ID is required"
+        if (!shipmentId || !shipmentId.trim()) {
+            return res.status(400).json({
+                error: "Shipment ID is required"
+            });
+        }
+
+        const shipment = await ReadModel
+            .findOne({ shipmentId: shipmentId.trim() })
+            .lean();
+
+        if (!shipment) {
+            return res.status(404).json({
+                error: "Shipment not found"
+            });
+        }
+
+        return res.json(shipment);
+
+    } catch (error) {
+        console.error("Error fetching shipment state:", error);
+
+        return res.status(500).json({
+            error: "Internal server error"
         });
     }
-
-    const shipment = await ReadModel
-        .findOne({ shipmentId: shipmentId.trim() })
-        .lean();
-
-    if (!shipment) {
-        return res.status(404).json({
-            error: "Shipment not found"
-        });
-    }
-
-    return res.json(shipment);
 }
 
 // GET /shipment/:id/history -> raw event stream, for the Timeline UI
@@ -56,7 +65,7 @@ async function getStateAsOf(req, res) {
             error: "Invalid asOf timestamp"
         });
     }
-
+  }
     
 
 // GET /shipment/:id/as-of?timestamp=... -> "rewind time" reconstruction
